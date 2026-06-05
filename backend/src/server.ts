@@ -8,6 +8,8 @@ import videosRoutes from "./routes/videos.js";
 import notesRoutes from "./routes/notes.js";
 import transcriptsRoutes from "./routes/transcripts.js";
 import summariesRoutes from "./routes/summaries.js";
+import batchRoutes from "./routes/batch.js";
+import dataRoutes from "./routes/data.js";
 
 export function buildServer() {
   const app = Fastify({
@@ -53,6 +55,8 @@ export function buildServer() {
   app.register(notesRoutes, { prefix: "/api" });
   app.register(transcriptsRoutes, { prefix: "/api" });
   app.register(summariesRoutes, { prefix: "/api" });
+  app.register(batchRoutes, { prefix: "/api" });
+  app.register(dataRoutes, { prefix: "/api" });
 
   return app;
 }

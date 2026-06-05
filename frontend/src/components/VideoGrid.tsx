@@ -11,12 +11,16 @@ export function VideoGrid({ videos }: { videos: Video[] }) {
       {videos.map((v) => (
         <div
           key={v.id}
-          className={`card ${v.id === selectedId ? "selected" : ""}`}
+          className={`card ${v.id === selectedId ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
           onClick={() => selectVideo(v.id)}
         >
           <div className="thumb-wrap">
             {v.thumbnail && <img src={v.thumbnail} alt="" loading="lazy" />}
-            {!v.is_short && isNew(v.added_at) && <div className="new-badge">Nouveau</div>}
+            {v.hidden ? (
+              <div className="hidden-badge">Masquée</div>
+            ) : (
+              isNew(v.added_at) && !v.is_short && <div className="new-badge">Nouveau</div>
+            )}
             {v.is_short && <div className="short-badge">Short</div>}
             {v.note_html && <div className="note-dot">✎ note</div>}
             <div className="duration-badge">{formatDuration(v.duration_s)}</div>

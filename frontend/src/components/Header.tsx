@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useStore } from "../store/useStore.js";
 import { SourceSelector } from "./SourceSelector.js";
+import { SettingsModal } from "./SettingsModal.js";
 
 export function Header() {
   const view = useStore((s) => s.view);
@@ -9,6 +11,7 @@ export function Header() {
   const refresh = useStore((s) => s.refreshActiveSource);
   const activeKey = useStore((s) => s.activeSourceKey);
   const loading = useStore((s) => s.loadingVideos);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <header>
@@ -43,7 +46,11 @@ export function Header() {
             ⟳
           </button>
         )}
+        <button className="icon-btn" onClick={() => setSettingsOpen(true)} title="Configuration">
+          ⚙
+        </button>
       </div>
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </header>
   );
 }

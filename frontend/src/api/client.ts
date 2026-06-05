@@ -44,10 +44,40 @@ export const api = {
   deleteSource: (key: string) =>
     request<void>(`/sources/${encodeURIComponent(key)}`, { method: "DELETE" }),
   refreshSource: (key: string) =>
-    request<Source>(`/sources/${encodeURIComponent(key)}/refresh`, { method: "POST" }),
+    request<Source & { new_video_ids: string[] }>(
+      `/sources/${encodeURIComponent(key)}/refresh`,
+      { method: "POST" },
+    ),
 
   // Vidéos
   listVideos: (key: string) => request<Video[]>(`/sources/${encodeURIComponent(key)}/videos`),
+
+  // Masquage
+  setHidden: (id: string, hidden: boolean) =>
+    request<{ ok: true; hidden: boolean }>(`/videos/${encodeURIComponent(id)}/hidden`, {
+      method: "PATCH",
+      body: JSON.stringify({ hidden }),
+    }),
+  baseline: (key: string) =>
+    request<{ ok: true; seen: number }>(`/sources/${encodeURIComponent(key)}/baseline`, {
+      method: "POST",
+    }),
+
+  // Export / import
+  exportData: () => request<Record<string, unknown>>("/data/export"),
+  importData: (payload: unknown) =>
+    request<{ ok: true }>("/data/import", { method: "POST", body: JSON.stringify(payload) }),
+
+  // Batch (flux NDJSON) — renvoie la réponse brute pour lire le stream.
+  processStream: (
+    key: string,
+    body: { transcripts: boolean; summaries: boolean; onlyMissing: boolean; videoIds?: string[] },
+  ) =>
+    fetch(`/api/sources/${encodeURIComponent(key)}/process`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 
   // Données utilisateur
   saveNote: (id: string, note_html: string) =>

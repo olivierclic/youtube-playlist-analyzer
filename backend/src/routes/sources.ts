@@ -5,8 +5,10 @@ import {
   deleteSource,
   getSource,
   listSources,
+  markAllSeen,
   replaceSourceVideos,
   touchRefreshed,
+  unseenVideoIds,
   upsertSource,
 } from "../db/repo.js";
 import { fetchSourceVideos, resolveSource, YoutubeError } from "../services/youtube.js";
@@ -106,7 +108,24 @@ const sourcesRoutes: FastifyPluginAsync = async (app) => {
       const videos = await fetchSourceVideos(src.playlist_id, key, apiKey);
       replaceSourceVideos(key, videos);
       touchRefreshed(key);
-      return sourceWithCount(key);
+      // Vidéos jamais « vues » → candidates au traitement auto côté front.
+      return { ...sourceWithCount(key), new_video_ids: unseenVideoIds(key) };
+    },
+  );
+
+  // Baseline du traitement auto : marque toutes les vidéos de la source « vues ».
+  app.post(
+    "/sources/:key/baseline",
+    {
+      schema: {
+        params: { type: "object", required: ["key"], properties: { key: { type: "string" } } },
+      },
+    },
+    async (req) => {
+      const { key } = req.params as { key: string };
+      if (!getSource(key)) throw new YoutubeError("source_not_found", "Source inconnue.", 404);
+      const count = markAllSeen(key);
+      return { ok: true, seen: count };
     },
   );
 };

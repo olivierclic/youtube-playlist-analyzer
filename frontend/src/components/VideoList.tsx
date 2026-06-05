@@ -28,12 +28,15 @@ export function VideoList({ videos }: { videos: Video[] }) {
         return (
           <div
             key={v.id}
-            className={`list-row ${v.id === selectedId ? "selected" : ""}`}
+            className={`list-row ${v.id === selectedId ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
             onClick={() => selectVideo(v.id)}
           >
             {v.thumbnail && <img className="list-thumb" src={v.thumbnail} alt="" loading="lazy" />}
             <div className="list-info">
-              <div className="list-title">{v.title}</div>
+              <div className="list-title">
+                {v.title}
+                {v.hidden && <span className="list-badge-hidden">Masquée</span>}
+              </div>
               <div className={`list-sub ${sub.cls}`}>
                 {sub.label && <span className="list-sub-label">{sub.label}</span>}
                 {sub.text}

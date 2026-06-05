@@ -20,6 +20,7 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
   const videos = useStore((s) => s.videos);
   const panelWidth = useStore((s) => s.panelWidth);
   const closePanel = useStore((s) => s.closePanel);
+  const setVideoHidden = useStore((s) => s.setVideoHidden);
 
   const video = videos.find((v) => v.id === selectedId) ?? null;
   const [tab, setTab] = useState<Tab>("description");
@@ -105,6 +106,12 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
             >
               ▶ Ouvrir sur YouTube
             </a>
+            <button
+              className="btn"
+              onClick={() => void setVideoHidden(video.id, !video.hidden)}
+            >
+              {video.hidden ? "↩ Restaurer dans la liste" : "🚫 Retirer de la liste"}
+            </button>
           </div>
         </>
       )}

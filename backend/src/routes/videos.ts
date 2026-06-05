@@ -5,9 +5,12 @@ import {
   getSource,
   listVideos,
   replaceSourceVideos,
+  setHidden,
   touchRefreshed,
+  videoExists,
 } from "../db/repo.js";
 import { fetchSourceVideos, YoutubeError } from "../services/youtube.js";
+import { NotFoundError } from "../errors.js";
 import type { VideoWithUserData } from "../types.js";
 
 /** Sérialise une vidéo pour le front : `tags` JSON décodé, booléens normalisés. */
@@ -54,6 +57,29 @@ const videosRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return listVideos(key).map(serialize);
+    },
+  );
+
+  // Masquage local (la vidéo reste sur YouTube).
+  app.patch(
+    "/videos/:id/hidden",
+    {
+      schema: {
+        params: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
+        body: {
+          type: "object",
+          required: ["hidden"],
+          additionalProperties: false,
+          properties: { hidden: { type: "boolean" } },
+        },
+      },
+    },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const { hidden } = req.body as { hidden: boolean };
+      if (!videoExists(id)) throw new NotFoundError("Vidéo inconnue.");
+      setHidden(id, hidden);
+      return { ok: true, hidden };
     },
   );
 };

@@ -164,7 +164,7 @@ export function getUserData(videoId: string): UserData | undefined {
  * Upsert d'un champ utilisateur (note_html | transcript | summary_md | hidden).
  * Le nom de colonne est contrôlé (liste blanche), jamais une entrée libre.
  */
-function makeFieldUpsert(column: "note_html" | "transcript" | "summary_md" | "hidden") {
+function makeFieldUpsert(column: "note_html" | "transcript" | "summary_md" | "hidden" | "seen") {
   return db.prepare(
     `INSERT INTO video_user_data (video_id, ${column}, updated_at)
      VALUES (@id, @value, datetime('now'))
@@ -177,6 +177,7 @@ const setNoteStmt = makeFieldUpsert("note_html");
 const setTranscriptStmt = makeFieldUpsert("transcript");
 const setSummaryStmt = makeFieldUpsert("summary_md");
 const setHiddenStmt = makeFieldUpsert("hidden");
+const setSeenStmt = makeFieldUpsert("seen");
 
 export function setNote(videoId: string, noteHtml: string | null): void {
   setNoteStmt.run({ id: videoId, value: noteHtml });
@@ -190,3 +191,84 @@ export function setSummary(videoId: string, summaryMd: string | null): void {
 export function setHidden(videoId: string, hidden: boolean): void {
   setHiddenStmt.run({ id: videoId, value: hidden ? 1 : 0 });
 }
+
+// ── Suivi « vu » (baseline du traitement auto) ──────────────────────────--
+
+const sourceVideoIdsStmt = db.prepare<[string], { id: string }>(
+  "SELECT id FROM videos WHERE source_key = ?",
+);
+const unseenVideoIdsStmt = db.prepare<[string], { id: string }>(
+  `SELECT v.id FROM videos v
+   LEFT JOIN video_user_data u ON u.video_id = v.id
+   WHERE v.source_key = ? AND COALESCE(u.seen, 0) = 0
+   ORDER BY v.position ASC`,
+);
+
+/** Ids des vidéos d'une source jamais « vues » (candidates au traitement auto). */
+export function unseenVideoIds(sourceKey: string): string[] {
+  return unseenVideoIdsStmt.all(sourceKey).map((r) => r.id);
+}
+
+/** Marque une liste de vidéos comme « vues » (transaction). */
+export const markSeen = db.transaction((ids: string[]): void => {
+  for (const id of ids) setSeenStmt.run({ id, value: 1 });
+});
+
+/** Marque toutes les vidéos d'une source comme « vues » (baseline). */
+export function markAllSeen(sourceKey: string): number {
+  const ids = sourceVideoIdsStmt.all(sourceKey).map((r) => r.id);
+  markSeen(ids);
+  return ids.length;
+}
+
+// ── Export / import global ──────────────────────────────────────────────--
+
+export interface DataDump {
+  sources: Source[];
+  videos: Video[];
+  user_data: UserData[];
+}
+
+export function dumpData(): DataDump {
+  return {
+    sources: db.prepare("SELECT * FROM sources ORDER BY position").all() as Source[],
+    videos: db.prepare("SELECT * FROM videos").all() as Video[],
+    user_data: db.prepare("SELECT * FROM video_user_data").all() as UserData[],
+  };
+}
+
+const insertUserDataStmt = db.prepare(
+  `INSERT INTO video_user_data (video_id, note_html, transcript, summary_md, hidden, seen, updated_at)
+   VALUES (@video_id, @note_html, @transcript, @summary_md, @hidden, @seen, @updated_at)`,
+);
+
+/** Remplace toutes les données (sources + vidéos + données utilisateur) en une transaction. */
+export const importData = db.transaction((dump: DataDump): void => {
+  db.prepare("DELETE FROM video_user_data").run();
+  db.prepare("DELETE FROM videos").run();
+  db.prepare("DELETE FROM sources").run();
+
+  for (const s of dump.sources) {
+    insertSourceStmt.run({
+      key: s.key,
+      kind: s.kind,
+      playlist_id: s.playlist_id,
+      title: s.title,
+      origin: s.origin ?? null,
+      position: s.position ?? 0,
+      refreshed_at: s.refreshed_at ?? null,
+    });
+  }
+  for (const v of dump.videos) insertVideoStmt.run(v as unknown as Record<string, unknown>);
+  for (const u of dump.user_data) {
+    insertUserDataStmt.run({
+      video_id: u.video_id,
+      note_html: u.note_html ?? null,
+      transcript: u.transcript ?? null,
+      summary_md: u.summary_md ?? null,
+      hidden: u.hidden ?? 0,
+      seen: u.seen ?? 0,
+      updated_at: u.updated_at ?? new Date().toISOString(),
+    });
+  }
+});
