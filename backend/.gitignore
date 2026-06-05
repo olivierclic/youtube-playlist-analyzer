@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+
+# Secrets & données locales
+.env
+.env.local
+data/
+*.db
+*.db-shm
+*.db-wal
