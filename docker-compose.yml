@@ -1,0 +1,61 @@
+# YouTube Playlist Analyzer — orchestration.
+# 2 services (backend Fastify + frontend nginx) sur un réseau privé,
+# 1 volume pour la base SQLite. Pensé pour tourner derrière un Traefik existant.
+#
+# ⚠️ Aucune authentification applicative : ne PAS exposer publiquement sans
+#    auth au niveau du reverse proxy (voir labels Traefik commentés + README).
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      DB_PATH: /app/data/youtube.db
+      NODE_ENV: production
+      # En production le frontend appelle /api en same-origin (nginx proxy),
+      # donc CORS n'est pas sollicité. Laisser permissif pour un accès direct éventuel.
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - sqlite-data:/app/data
+    networks:
+      - app
+    # Pas de `ports:` exposés : le backend n'est joignable que via le réseau interne
+    # (le frontend nginx proxifie /api). Décommenter pour un accès direct en debug.
+    # ports:
+    #   - "3000:3000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - app
+      # - traefik   # décommenter si Traefik est sur un réseau externe dédié
+    # Accès local sans Traefik : http://localhost:8080
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    # ── Labels Traefik (optionnels) ──────────────────────────────────────
+    # Décommenter et adapter selon ton install Traefik existante.
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.docker.network=traefik"
+    #   - "traefik.http.routers.ytanalyzer.rule=Host(`${APP_DOMAIN:-yt.example.com}`)"
+    #   - "traefik.http.routers.ytanalyzer.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+    #   - "traefik.http.routers.ytanalyzer.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+    #   - "traefik.http.services.ytanalyzer.loadbalancer.server.port=80"
+    #   # Sécurité : protéger par une basic-auth Traefik (pas d'auth applicative).
+    #   - "traefik.http.routers.ytanalyzer.middlewares=ytanalyzer-auth"
+    #   - "traefik.http.middlewares.ytanalyzer-auth.basicauth.users=${BASIC_AUTH_USERS}"
+
+volumes:
+  sqlite-data:
+
+networks:
+  app:
+    driver: bridge
+  # traefik:
+  #   external: true
