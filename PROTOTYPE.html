@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playlists YouTube — Analyse</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FF0000'/%3E%3Cpolygon points='38,28 38,72 74,50' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0f0f0f; --bg2: #181818; --bg3: #262626; --border: #333;
+    --text: #f1f1f1; --text2: #aaa; --text3: #707070;
+    --red: #ff0000; --red2: #cc0000; --accent: #7a4ddb; --accent2: #6a3dcb;
+    --radius: 8px; --radius-lg: 12px; --shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  body.light {
+    --bg: #f6f6f6; --bg2: #ffffff; --bg3: #eeeeee; --border: #dcdcdc;
+    --text: #0f0f0f; --text2: #555; --text3: #999; --shadow: 0 8px 40px rgba(0,0,0,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Roboto', -apple-system, sans-serif; background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column; overflow: hidden; transition: background 0.2s, color 0.2s;
+  }
+
+  /* HEADER */
+  header { flex-shrink: 0; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 14px; z-index: 100; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 9px; }
+  .logo svg { width: 30px; height: 21px; }
+  .logo span { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .icon-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; }
+  .icon-btn:hover { border-color: #888; color: var(--text); }
+
+  /* SOURCE SELECTOR */
+  .source-wrap { position: relative; }
+  .source-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; max-width: 340px; transition: all 0.15s; }
+  .source-btn:hover { border-color: #888; }
+  .source-btn .src-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .source-btn .chev { color: var(--text3); font-size: 11px; }
+  .source-menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); min-width: 340px; max-width: 440px; z-index: 200; overflow: hidden; }
+  .source-menu.open { display: block; }
+  .source-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  .source-item:hover, .source-item.active { background: var(--bg3); }
+  .source-item .si-info { flex: 1; min-width: 0; }
+  .source-item .si-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .source-item .si-meta { font-size: 11px; color: var(--text3); }
+  .source-item .si-remove { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+  .source-item .si-remove:hover { color: var(--red); background: var(--bg); }
+  .source-add { padding: 12px 14px; background: var(--bg2); }
+  .source-add-row { display: flex; gap: 8px; }
+  .source-add input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 12px; outline: none; }
+  .source-add input:focus { border-color: var(--accent); }
+  .source-add-btn { background: var(--accent); border: none; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .source-add-btn:hover { background: var(--accent2); }
+  .source-add-hint { font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
+  .source-add-err { font-size: 11px; color: #ff6b6b; margin-top: 8px; display: none; }
+  .source-add-err.show { display: block; }
+
+  /* EXPORT MENU */
+  .export-wrap { position: relative; }
+  .export-menu { display: none; position: absolute; top: calc(100% + 6px); right: 0; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); min-width: 230px; z-index: 200; overflow: hidden; }
+  .export-menu.open { display: block; }
+  .export-opt { padding: 12px 16px; cursor: pointer; font-size: 13px; transition: background 0.12s; border-bottom: 1px solid var(--border); }
+  .export-opt:last-child { border-bottom: none; }
+  .export-opt:hover { background: var(--bg3); }
+  .export-opt small { display: block; color: var(--text3); font-size: 11px; margin-top: 2px; }
+
+  /* CONFIG */
+  .config-panel { flex-shrink: 0; margin: 16px 24px 0; background: var(--bg2); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 20px 24px; display: none; }
+  .config-panel.visible { display: block; }
+  .config-panel h3 { font-size: 14px; color: var(--accent); margin-bottom: 14px; }
+  .config-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .config-row label { font-size: 12px; color: var(--text3); min-width: 150px; }
+  .config-input { flex: 1; min-width: 220px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none; }
+  .config-input:focus { border-color: var(--accent); }
+  .config-input.invalid { border-color: #ff4444; }
+  .config-err { font-size: 12px; color: #ff6b6b; padding: 0 0 8px 160px; display: none; }
+  .config-err.show { display: block; }
+  .config-hint { font-size: 11px; color: var(--text3); margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); line-height: 1.6; }
+  .config-hint code { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  /* FILTERS */
+  .controls { flex-shrink: 0; padding: 14px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--bg2); }
+  .filter-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); padding: 7px 15px; border-radius: 18px; font-size: 13px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .filter-btn:hover { border-color: #888; color: var(--text); }
+  .filter-btn.active { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .type-btn.active#t-short { background: #ff4444; border-color: #ff4444; color: #fff; }
+  .type-btn.active#t-video { background: #2e9e5b; border-color: #2e9e5b; color: #fff; }
+  .ctrl-divider { width: 1px; height: 24px; background: var(--border); margin: 0 3px; }
+  .sep { flex: 1; }
+  .sort-select { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); padding: 7px 12px; border-radius: 18px; font-size: 13px; cursor: pointer; outline: none; max-width: 230px; }
+  .count-badge { font-size: 12px; color: var(--text3); white-space: nowrap; }
+
+  /* WORKSPACE SPLIT */
+  .app-body { flex: 1; display: flex; min-height: 0; }
+  #main-content { flex: 1; overflow-y: auto; min-width: 0; }
+  .detail-panel { width: 0; flex-shrink: 0; overflow: hidden; border-left: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; transition: width 0.25s ease; position: relative; }
+  .detail-panel.open { width: var(--panel-w, 50%); }
+  .detail-panel.resizing { transition: none; }
+  .resizer { width: 6px; flex-shrink: 0; cursor: col-resize; background: var(--border); display: none; }
+  .app-body.panel-open .resizer { display: block; }
+  .resizer:hover, .resizer.dragging { background: var(--accent); }
+
+  /* GRID */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1px; background: var(--border); margin: 20px 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .detail-panel.open ~ #main-content .grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .card { background: var(--bg2); cursor: pointer; transition: background 0.15s; display: flex; flex-direction: column; }
+  .card:hover, .card.selected { background: var(--bg3); }
+  .card.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #000; }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
+  .card:hover .thumb-wrap img { transform: scale(1.03); }
+  .duration-badge { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.85); color: #fff; font-size: 12px; font-weight: 500; padding: 2px 6px; border-radius: 3px; }
+  .new-badge { position: absolute; top: 8px; left: 8px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .short-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.8); border: 1px solid #ff4444; color: #ff6666; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; }
+  .note-dot { position: absolute; bottom: 6px; left: 6px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; }
+  .card-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .card-title { font-size: 14px; font-weight: 500; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-channel { color: var(--text2); font-size: 12px; }
+  .card-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); flex-wrap: wrap; }
+
+  /* LIST */
+  .list { margin: 20px 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .list-row { display: flex; gap: 14px; padding: 12px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; align-items: center; }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover, .list-row.selected { background: var(--bg3); }
+  .list-row.selected { box-shadow: inset 3px 0 0 var(--accent); }
+  .list-thumb { width: 140px; height: 79px; object-fit: cover; border-radius: 6px; background: #000; flex-shrink: 0; }
+  .list-info { flex: 1; min-width: 0; }
+  .list-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .list-sub { font-size: 13px; color: var(--text2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .list-sub.is-note { color: var(--accent); }
+  .list-sub.is-summary { color: #2e9e8a; }
+  .list-sub-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-right: 6px; }
+  .list-dur { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* LOADING / EMPTY */
+  .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; gap: 18px; color: var(--text2); }
+  .spinner { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .loading-main { font-size: 16px; font-weight: 500; color: var(--text); }
+  .loading-sub { font-size: 13px; color: var(--text3); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+  .empty { text-align: center; padding: 70px 24px; color: var(--text3); font-size: 15px; }
+  .empty strong { display: block; font-size: 18px; color: var(--text2); margin-bottom: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); text-decoration: none; transition: all 0.15s; background: var(--bg3); color: var(--text2); margin-top: 8px; }
+  .btn:hover { border-color: #888; color: var(--text); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); color: #fff; }
+
+  /* DETAIL PANEL CONTENT */
+  .panel-close { position: absolute; top: 12px; right: 12px; background: var(--bg3); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; z-index: 5; }
+  .panel-close:hover { background: var(--red); color: #fff; }
+  .modal-head { flex-shrink: 0; display: flex; gap: 16px; align-items: flex-start; padding: 20px 22px 16px; border-bottom: 1px solid var(--border); }
+  .modal-thumb { width: 200px; height: 113px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #000; border: 1px solid var(--border); }
+  .modal-head-text { flex: 1; min-width: 0; padding-right: 36px; }
+  .modal-title { font-size: 17px; font-weight: 600; line-height: 1.35; margin-bottom: 10px; }
+  .modal-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text2); }
+  .modal-meta span { display: flex; align-items: center; gap: 5px; }
+  .tabs { flex-shrink: 0; display: flex; gap: 2px; padding: 0 22px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text3); padding: 12px 16px; font-size: 13px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab .tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
+  .tab-content { flex: 1; overflow-y: auto; padding: 20px 22px; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .pane-head h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); font-weight: 600; }
+  .btn-group { display: flex; gap: 6px; }
+  .btn-sm { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn-sm:hover { border-color: #888; color: var(--text); }
+  .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-sm-primary:hover { background: var(--accent2); color: #fff; }
+  .m-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 12px 14px; font-size: 14px; line-height: 1.7; font-family: inherit; resize: vertical; outline: none; }
+  .m-textarea:focus { border-color: var(--accent); }
+  .m-textarea.notes { min-height: 180px; }
+  .fmt-btn { min-width: 32px; text-align: center; padding: 6px 9px; }
+  .fmt-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 6px; }
+  .config-sep { height: 1px; background: var(--border); margin: 16px 0; }
+  .config-status { font-size: 12px; color: var(--text3); }
+  .config-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); cursor: pointer; min-width: 0; }
+  .config-check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .rich-editor { width: 100%; min-height: 320px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 12px 14px; font-size: 14px; line-height: 1.8; outline: none; overflow-y: auto; word-break: break-word; }
+  .rich-editor:focus { border-color: var(--accent); }
+  .rich-editor:empty:before { content: attr(data-placeholder); color: var(--text3); }
+  .rich-editor h1, .rich-editor h2, .rich-editor h3 { font-size: 15px; font-weight: 600; margin: 12px 0 6px; color: var(--text); }
+  .rich-editor ul, .rich-editor ol { padding-left: 22px; margin: 6px 0; }
+  .rich-editor p { margin: 6px 0; }
+  .rich-editor code { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  .m-textarea.transcript { min-height: 260px; }
+  .m-hint { font-size: 11px; color: var(--text3); line-height: 1.5; margin-bottom: 10px; }
+  .modal-desc { font-size: 14px; color: var(--text2); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+  .summary-output { font-size: 14px; line-height: 1.8; color: var(--text2); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; display: none; margin-top: 12px; }
+  .summary-output.visible { display: block; }
+  .summary-output h1, .summary-output h2, .summary-output h3 { color: var(--text); font-size: 15px; margin: 14px 0 7px; font-weight: 600; }
+  .summary-output h1:first-child, .summary-output h2:first-child { margin-top: 0; }
+  .summary-output ul { margin: 7px 0; padding-left: 22px; }
+  .summary-output li { margin: 4px 0; }
+  .summary-output p { margin: 7px 0; }
+  .summary-output strong { color: var(--text); }
+  .summary-output code { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  .summary-loading { color: var(--text3); font-style: italic; }
+  .note-status { font-size: 11px; color: var(--text3); margin-top: 8px; height: 14px; }
+  .panel-foot { flex-shrink: 0; border-top: 1px solid var(--border); padding: 12px 22px; display: flex; gap: 8px; align-items: center; }
+  .card.hidden-v, .list-row.hidden-v { opacity: 0.55; }
+  .hidden-badge { position: absolute; top: 8px; left: 8px; background: var(--text3); color: var(--bg); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .list-badge-hidden { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bg); background: var(--text3); padding: 1px 6px; border-radius: 3px; margin-left: 8px; }
+
+  @media (max-width: 760px) {
+    header { padding: 10px 14px; }
+    .controls { padding: 10px 14px; }
+    .grid, .list { margin: 14px; }
+    .grid { grid-template-columns: 1fr; }
+    .config-panel { margin: 14px 14px 0; }
+    .detail-panel.open { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; }
+  }
+</style>
+</head>
+<body>
+
+<script>
+const DEFAULTS = { API_KEY: 'COLLE_TA_CLE_ICI', OPENROUTER_KEY: '', MODEL: 'anthropic/claude-3.5-sonnet', APIFY_TOKEN: '' };
+const APIFY_ACTOR = 'vKlQCAJRI72MdyK1u';
+const CONFIG = { ...DEFAULTS };
+</script>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 90 20" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="20" rx="4" fill="#FF0000"/><polygon points="36,4 36,16 56,10" fill="white"/></svg>
+    <span>Playlists</span>
+  </div>
+  <div class="source-wrap">
+    <button class="source-btn" onclick="toggleSourceMenu(event)">
+      <span class="src-name" id="active-source-name">Aucune source</span><span class="chev">▼</span>
+    </button>
+    <div class="source-menu" id="source-menu">
+      <div id="source-list"></div>
+      <div class="source-add">
+        <button class="source-add-btn" style="width:100%" onclick="addSourceFromClipboard()">📋 Ajouter l'URL du presse-papier</button>
+        <div class="source-add-err" id="add-source-err"></div>
+        <div class="source-add-hint">Copie l'URL d'une playlist (<code>…list=PL…</code>) ou d'une chaîne (<code>/@handle</code>, <code>/channel/UC…</code>), puis clique ce bouton.</div>
+      </div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" id="view-toggle" onclick="toggleView()" title="Affichage grille/liste">▦</button>
+    <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Thème clair/sombre">☾</button>
+    <div class="export-wrap">
+      <button class="icon-btn" id="export-btn" onclick="toggleExportMenu(event)" title="Exporter JSON" style="display:none">↓</button>
+      <div class="export-menu" id="export-menu">
+        <div class="export-opt" onclick="exportJSON('filtered')">Exporter la sélection filtrée<small id="export-filtered-count"></small></div>
+        <div class="export-opt" onclick="exportJSON('all')">Exporter toute la source<small id="export-all-count"></small></div>
+      </div>
+    </div>
+    <button class="icon-btn" id="refresh-btn" onclick="refreshActiveSource()" title="Rafraîchir cette source" style="display:none">⟳</button>
+    <button class="icon-btn" onclick="toggleConfig()" title="Configuration">⚙</button>
+  </div>
+</header>
+
+<div class="config-panel" id="config-panel">
+  <h3>⚙ Configuration</h3>
+  <div class="config-row"><label>Clé API YouTube</label><input class="config-input" id="cfg-key" type="text" placeholder="AIzaSy…"></div>
+  <div class="config-err" id="err-key"></div>
+  <div class="config-row"><label>Clé API OpenRouter</label><input class="config-input" id="cfg-openrouter" type="text" placeholder="sk-or-… (résumés IA)"></div>
+  <div class="config-row"><label>Modèle IA</label><input class="config-input" id="cfg-model" type="text" placeholder="anthropic/claude-3.5-sonnet"></div>
+  <div class="config-row"><label>Token Apify</label><input class="config-input" id="cfg-apify" type="text" placeholder="apify_api_… (transcriptions)"></div>
+  <div class="config-row"><button class="btn btn-primary" onclick="applyConfig()">Enregistrer</button></div>
+
+  <div class="config-sep"></div>
+  <div class="config-row">
+    <label class="config-check"><input type="checkbox" id="cfg-auto" onchange="toggleAuto()"> Récupérer automatiquement transcription + résumé des nouvelles vidéos à venir</label>
+  </div>
+  <div class="config-row">
+    <label class="config-check"><input type="checkbox" id="cfg-show-hidden" onchange="toggleShowHidden()"> Afficher les vidéos masquées (retirées de la liste)</label>
+  </div>
+  <div class="config-row">
+    <button class="btn" id="batch-btn" onclick="processPending()">⚡ Traiter les vidéos en attente (transcription + résumé manquants)</button>
+    <span class="config-status" id="batch-status"></span>
+  </div>
+
+  <div class="config-sep"></div>
+  <div class="config-row">
+    <button class="btn" onclick="exportData()">⬇ Exporter toutes les données (JSON)</button>
+    <button class="btn" onclick="document.getElementById('import-file').click()">⬆ Importer des données</button>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importData(event)">
+    <span class="config-status" id="iodata-status"></span>
+  </div>
+
+  <div class="config-hint">Clés, sources, thème, notes, transcriptions et résumés sont mémorisés dans ce navigateur. L'export/import JSON permet de tout sauvegarder ou transférer sur un autre appareil. Le traitement automatique ne concerne que les vidéos ajoutées <em>après</em> activation ; utilise le bouton « Traiter les vidéos en attente » pour le rattrapage.</div>
+</div>
+
+<div class="controls" id="controls" style="display:none">
+  <button class="filter-btn active" onclick="setFilter(0)" id="f0">Toutes</button>
+  <button class="filter-btn" onclick="setFilter(7)" id="f7">7 j</button>
+  <button class="filter-btn" onclick="setFilter(14)" id="f14">14 j</button>
+  <button class="filter-btn" onclick="setFilter(30)" id="f30">30 j</button>
+  <div class="ctrl-divider"></div>
+  <button class="filter-btn type-btn active" onclick="setType('all')" id="t-all">Tout type</button>
+  <button class="filter-btn type-btn" onclick="setType('short')" id="t-short">Shorts</button>
+  <button class="filter-btn type-btn" onclick="setType('video')" id="t-video">Vidéos</button>
+  <div class="ctrl-divider"></div>
+  <select class="sort-select" id="channel-filter" onchange="setChannel(this.value)"><option value="">Tous les créateurs</option></select>
+  <select class="sort-select" onchange="setSort(this.value)">
+    <option value="date_desc">Plus récentes</option><option value="date_asc">Plus anciennes</option>
+    <option value="duration_desc">Plus longues</option><option value="duration_asc">Plus courtes</option>
+    <option value="title_asc">A → Z</option><option value="views_desc">Plus vues</option>
+  </select>
+  <div class="sep"></div>
+  <div class="count-badge" id="count-badge"></div>
+</div>
+
+<div class="app-body">
+  <div id="main-content">
+    <div class="empty"><strong>Bienvenue</strong>Configure ta clé API YouTube (⚙) puis ajoute une source via le sélecteur en haut.</div>
+  </div>
+  <div class="resizer" id="resizer" onmousedown="startResize(event)"></div>
+  <aside class="detail-panel" id="detail-panel">
+    <button class="panel-close" onclick="closePanel()" aria-label="Fermer">×</button>
+    <div class="modal-head">
+      <img class="modal-thumb" id="modal-thumb" alt="">
+      <div class="modal-head-text">
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-meta" id="modal-meta"></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-tab="notes" onclick="switchTab('notes')">Notes<span class="tab-dot" id="dot-notes" style="display:none"></span></button>
+      <button class="tab" data-tab="description" onclick="switchTab('description')">Description</button>
+      <button class="tab" data-tab="transcript" onclick="switchTab('transcript')">Transcription<span class="tab-dot" id="dot-transcript" style="display:none"></span></button>
+      <button class="tab" data-tab="summary" onclick="switchTab('summary')">Résumé IA<span class="tab-dot" id="dot-summary" style="display:none"></span></button>
+    </div>
+    <div class="tab-content">
+      <div class="tab-pane" id="pane-notes">
+        <div class="pane-head">
+          <h4>Mes notes</h4>
+          <div class="btn-group fmt-bar">
+            <button class="btn-sm fmt-btn" onmousedown="execFmt(event,'bold')" title="Gras (Ctrl+B)"><b>B</b></button>
+            <button class="btn-sm fmt-btn" onmousedown="execFmt(event,'italic')" title="Italique (Ctrl+I)"><i>I</i></button>
+            <button class="btn-sm fmt-btn" onmousedown="execFmt(event,'underline')" title="Souligné"><u>U</u></button>
+            <button class="btn-sm fmt-btn" onmousedown="execBlock(event,'h3')" title="Titre">H</button>
+            <button class="btn-sm fmt-btn" onmousedown="execFmt(event,'insertUnorderedList')" title="Liste à puces">•</button>
+            <button class="btn-sm fmt-btn" onmousedown="execClear(event)" title="Effacer la mise en forme">⌫</button>
+            <span class="fmt-sep"></span>
+            <button class="btn-sm" onclick="copyNoteMarkdown(this)">Copier MD</button>
+            <button class="btn-sm" onclick="copyNoteText(this)">Copier txt</button>
+          </div>
+        </div>
+        <div id="notes-editor" class="rich-editor" contenteditable="true" oninput="saveNotes()" data-placeholder="Tes notes… (mise en forme via la barre ci-dessus ; le collage Markdown est converti automatiquement)"></div>
+        <div class="note-status" id="notes-status"></div>
+      </div>
+      <div class="tab-pane" id="pane-description">
+        <div class="pane-head"><h4>Description du créateur</h4></div>
+        <div class="modal-desc" id="modal-desc"></div>
+      </div>
+      <div class="tab-pane" id="pane-transcript">
+        <div class="pane-head">
+          <h4>Transcription</h4>
+          <div class="btn-group">
+            <button class="btn-sm btn-sm-primary" onclick="fetchTranscriptApify()" id="apify-btn">⤓ Récupérer (Apify)</button>
+            <button class="btn-sm" onclick="copyTextarea('transcript-text', this)">Copier</button>
+          </div>
+        </div>
+        <div class="m-hint" id="transcript-status">Récupère la transcription via Apify (token requis dans ⚙), ou colle-la manuellement. Sauvegardée et utilisée pour le résumé IA.</div>
+        <textarea id="transcript-text" class="m-textarea transcript" placeholder="Transcription…" oninput="saveTranscript()"></textarea>
+      </div>
+      <div class="tab-pane" id="pane-summary">
+        <div class="pane-head">
+          <h4>Résumé IA</h4>
+          <div class="btn-group">
+            <button class="btn-sm btn-sm-primary" onclick="generateSummary()" id="gen-summary-btn">✨ Générer un résumé</button>
+            <button class="btn-sm" onclick="copyText(currentSummaryMarkdown, this)" id="copy-summary-btn" style="display:none">Copier (Markdown)</button>
+          </div>
+        </div>
+        <div class="summary-output" id="summary-output"></div>
+      </div>
+    </div>
+    <div class="panel-foot">
+      <a class="btn-sm" id="yt-link" href="#" target="_blank" rel="noopener">▶ Ouvrir sur YouTube</a>
+      <div style="flex:1"></div>
+      <button class="btn-sm" id="hide-btn" onclick="toggleHidden(currentVideoId)">🚫 Retirer de la liste</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ÉTAT */
+let sources = [], activeSourceKey = null, videoCache = {}, allVideos = [];
+let currentFilter = 0, currentType = 'all', currentChannel = '', currentSort = 'date_desc';
+let viewMode = 'grid', currentVideoId = null, currentSummaryMarkdown = '', currentTab = 'description';
+let autoProcess = false, seenSet = new Set(), batchRunning = false;
+let hiddenSet = new Set(), showHidden = false;
+
+/* STOCKAGE */
+const STORE = 'ytpl:';
+function lsGet(k){ try { return localStorage.getItem(STORE+k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(STORE+k,v); } catch(e){} }
+function saveState(){
+  lsSet('config', JSON.stringify({ API_KEY:CONFIG.API_KEY, OPENROUTER_KEY:CONFIG.OPENROUTER_KEY, MODEL:CONFIG.MODEL, APIFY_TOKEN:CONFIG.APIFY_TOKEN }));
+  lsSet('sources', JSON.stringify(sources)); lsSet('active', activeSourceKey || ''); lsSet('view', viewMode);
+}
+function loadState(){
+  const c = lsGet('config'); if (c){ try { Object.assign(CONFIG, JSON.parse(c)); } catch(e){} }
+  const s = lsGet('sources'); if (s){ try { sources = JSON.parse(s) || []; } catch(e){} }
+  activeSourceKey = lsGet('active') || (sources[0] && sources[0].key) || null;
+  viewMode = lsGet('view') || 'grid';
+  autoProcess = lsGet('auto') === '1';
+  showHidden = lsGet('showhidden') === '1';
+  try { seenSet = new Set(JSON.parse(lsGet('seen')||'[]')); } catch(e){ seenSet = new Set(); }
+  try { hiddenSet = new Set(JSON.parse(lsGet('hidden')||'[]')); } catch(e){ hiddenSet = new Set(); }
+  if ((lsGet('theme')||'dark') === 'light') document.body.classList.add('light');
+  const pw = lsGet('panelW'); if (pw) document.documentElement.style.setProperty('--panel-w', pw);
+  updateThemeIcon(); updateViewIcon();
+}
+
+/* THÈME / VUE */
+function toggleTheme(){ document.body.classList.toggle('light'); lsSet('theme', document.body.classList.contains('light')?'light':'dark'); updateThemeIcon(); }
+function updateThemeIcon(){ document.getElementById('theme-toggle').textContent = document.body.classList.contains('light')?'☀':'☾'; }
+function toggleView(){ viewMode = viewMode==='grid'?'list':'grid'; updateViewIcon(); lsSet('view', viewMode); render(); }
+function updateViewIcon(){ document.getElementById('view-toggle').textContent = viewMode==='grid'?'≣':'▦'; }
+
+/* CONFIG */
+function toggleConfig(){
+  const p = document.getElementById('config-panel'); p.classList.toggle('visible');
+  if (p.classList.contains('visible')){
+    document.getElementById('cfg-key').value = CONFIG.API_KEY==='COLLE_TA_CLE_ICI'?'':CONFIG.API_KEY;
+    document.getElementById('cfg-openrouter').value = CONFIG.OPENROUTER_KEY||'';
+    document.getElementById('cfg-model').value = CONFIG.MODEL||DEFAULTS.MODEL;
+    document.getElementById('cfg-apify').value = CONFIG.APIFY_TOKEN||'';
+    document.getElementById('cfg-auto').checked = autoProcess;
+    document.getElementById('cfg-show-hidden').checked = showHidden;
+    setBatchStatus(''); document.getElementById('iodata-status').textContent = '';
+  }
+}
+function validateApiKey(key){ if (!key||key==='COLLE_TA_CLE_ICI') return 'Aucune clé API saisie.'; if (!/^AIza[0-9A-Za-z\-_]{35}$/.test(key)) return 'Format de clé invalide (« AIza », 39 caractères).'; return null; }
+function applyConfig(){
+  const key = document.getElementById('cfg-key').value.trim();
+  const err = validateApiKey(key), errEl = document.getElementById('err-key'), inEl = document.getElementById('cfg-key');
+  if (err){ errEl.textContent=err; errEl.classList.add('show'); inEl.classList.add('invalid'); return; }
+  errEl.classList.remove('show'); inEl.classList.remove('invalid');
+  CONFIG.API_KEY = key;
+  CONFIG.OPENROUTER_KEY = document.getElementById('cfg-openrouter').value.trim();
+  CONFIG.MODEL = document.getElementById('cfg-model').value.trim() || DEFAULTS.MODEL;
+  CONFIG.APIFY_TOKEN = document.getElementById('cfg-apify').value.trim();
+  saveState(); document.getElementById('config-panel').classList.remove('visible');
+  renderSourceList(); if (activeSourceKey) loadActiveSource();
+}
+
+/* MENUS */
+function toggleSourceMenu(e){
+  e.stopPropagation();
+  document.getElementById('source-menu').classList.toggle('open');
+  document.getElementById('export-menu').classList.remove('open');
+}
+function toggleExportMenu(e){
+  e.stopPropagation(); const m = document.getElementById('export-menu'); m.classList.toggle('open');
+  document.getElementById('source-menu').classList.remove('open');
+  if (m.classList.contains('open')){ document.getElementById('export-filtered-count').textContent = ` ${getFiltered().length} vidéos, filtres actifs`; document.getElementById('export-all-count').textContent = ` ${allVideos.length} vidéos, sans filtre`; }
+}
+document.addEventListener('click', () => { document.getElementById('source-menu').classList.remove('open'); document.getElementById('export-menu').classList.remove('open'); });
+
+/* SOURCES */
+function parseSourceInput(input){
+  input = input.trim(); let m;
+  if ((m = input.match(/[?&]list=([0-9A-Za-z\-_]+)/))) return { type:'playlist', value:m[1] };
+  if (/^(PL|UU|FL|OL|RD|LL)[0-9A-Za-z\-_]{10,}$/.test(input)) return { type:'playlist', value:input };
+  if ((m = input.match(/\/channel\/(UC[0-9A-Za-z\-_]+)/))) return { type:'channelId', value:m[1] };
+  if (/^UC[0-9A-Za-z\-_]{20,}$/.test(input)) return { type:'channelId', value:input };
+  if ((m = input.match(/\/@([0-9A-Za-z\-_.]+)/)) || (m = input.match(/^@([0-9A-Za-z\-_.]+)$/))) return { type:'handle', value:'@'+m[1] };
+  if ((m = input.match(/\/user\/([0-9A-Za-z\-_]+)/))) return { type:'username', value:m[1] };
+  return null;
+}
+async function resolveSource(input){
+  const parsed = parseSourceInput(input);
+  if (!parsed) throw new Error("URL non reconnue (playlist …list=PL… ou chaîne /@handle, /channel/UC…).");
+  if (parsed.type === 'playlist'){
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${parsed.value}&key=${CONFIG.API_KEY}`); const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message||'Erreur API');
+    const it = d.items?.[0]; if (!it) throw new Error("Playlist introuvable (publique ?).");
+    return { key:'pl:'+parsed.value, title:it.snippet.title, kind:'playlist', origin:input };
+  }
+  let q = parsed.type==='channelId' ? 'id='+parsed.value : parsed.type==='handle' ? 'forHandle='+encodeURIComponent(parsed.value) : 'forUsername='+encodeURIComponent(parsed.value);
+  const r = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&${q}&key=${CONFIG.API_KEY}`); const d = await r.json();
+  if (!r.ok) throw new Error(d.error?.message||'Erreur API');
+  const it = d.items?.[0]; if (!it) throw new Error('Chaîne introuvable.');
+  const uploads = it.contentDetails?.relatedPlaylists?.uploads; if (!uploads) throw new Error("Vidéos de la chaîne introuvables.");
+  return { key:'ch:'+it.id, title:it.snippet.title+' (chaîne)', kind:'channel', origin:input, uploads };
+}
+async function addSourceFromClipboard(){
+  const errEl = document.getElementById('add-source-err'); errEl.classList.remove('show'); errEl.style.color = '#ff6b6b';
+  if (validateApiKey(CONFIG.API_KEY)){ errEl.textContent="Renseigne d'abord ta clé API YouTube (⚙)."; errEl.classList.add('show'); return; }
+
+  let val = '';
+  try { val = ((await navigator.clipboard.readText()) || '').trim(); }
+  catch(e){ errEl.textContent = "Accès au presse-papier refusé par le navigateur."; errEl.classList.add('show'); return; }
+
+  if (!val){ errEl.textContent = "Le presse-papier est vide."; errEl.classList.add('show'); return; }
+  if (!parseSourceInput(val)){ errEl.textContent = "Le presse-papier ne contient pas une URL de playlist ou de chaîne valide."; errEl.classList.add('show'); return; }
+
+  const btn = document.querySelector('.source-add-btn'); const label = btn.textContent; btn.textContent='Vérification…'; btn.disabled=true;
+  try {
+    const src = await resolveSource(val);
+    if (sources.find(s => s.key===src.key)){ errEl.textContent='Source déjà ajoutée.'; errEl.classList.add('show'); }
+    else sources.push(src);
+    activeSourceKey = src.key; saveState(); renderSourceList(); updateActiveSourceName(); await loadActiveSource();
+  } catch(e){ errEl.textContent=e.message; errEl.classList.add('show'); }
+  finally { btn.textContent=label; btn.disabled=false; }
+}
+function removeSource(key, e){
+  e.stopPropagation(); sources = sources.filter(s => s.key!==key); delete videoCache[key];
+  if (activeSourceKey===key) activeSourceKey = sources[0]?.key || null;
+  saveState(); renderSourceList(); updateActiveSourceName();
+  if (activeSourceKey) loadActiveSource();
+  else { allVideos=[]; closePanel(); ['controls','export-btn','refresh-btn'].forEach(i=>document.getElementById(i).style.display='none'); document.getElementById('main-content').innerHTML='<div class="empty"><strong>Aucune source</strong>Ajoute une playlist ou une chaîne via le sélecteur en haut.</div>'; }
+}
+function selectSource(key, e){ if (e) e.stopPropagation(); activeSourceKey=key; saveState(); document.getElementById('source-menu').classList.remove('open'); closePanel(); renderSourceList(); updateActiveSourceName(); loadActiveSource(); }
+function updateActiveSourceName(){ const s = sources.find(x => x.key===activeSourceKey); document.getElementById('active-source-name').textContent = s?s.title:'Aucune source'; }
+function renderSourceList(){
+  const list = document.getElementById('source-list');
+  if (!sources.length){ list.innerHTML = '<div style="padding:14px;color:var(--text3);font-size:13px">Aucune source. Ajoute-en une ci-dessous.</div>'; return; }
+  list.innerHTML = sources.map(s => `<div class="source-item ${s.key===activeSourceKey?'active':''}" onclick="selectSource('${s.key}', event)"><div class="si-info"><div class="si-title">${escHtml(s.title)}</div><div class="si-meta">${s.kind==='channel'?'Chaîne':'Playlist'}${videoCache[s.key]?' · '+videoCache[s.key].length+' vidéos':''}</div></div><button class="si-remove" onclick="removeSource('${s.key}', event)" title="Retirer">×</button></div>`).join('');
+}
+
+/* FETCH */
+function playlistIdFor(src){ return src.kind==='channel' ? src.uploads : src.key.replace(/^pl:/,''); }
+async function fetchAllPlaylistItems(pid){
+  let items=[], pageToken='';
+  do {
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${pid}&key=${CONFIG.API_KEY}${pageToken?'&pageToken='+pageToken:''}`);
+    if (!r.ok){ const e = await r.json().catch(()=>({})); const err = new Error(e.error?.message||'Erreur API'); err.apiReason = e.error?.errors?.[0]?.reason||''; throw err; }
+    const d = await r.json(); items = items.concat(d.items||[]); pageToken = d.nextPageToken||'';
+  } while (pageToken);
+  return items;
+}
+async function fetchVideoDetails(ids){
+  const chunks=[]; for (let i=0;i<ids.length;i+=50) chunks.push(ids.slice(i,i+50)); let out=[];
+  for (const c of chunks){ const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${c.join(',')}&key=${CONFIG.API_KEY}`); const d = await r.json(); out = out.concat(d.items||[]); }
+  return out;
+}
+async function loadActiveSource(force){
+  const src = sources.find(s => s.key===activeSourceKey); if (!src) return;
+  updateActiveSourceName();
+  if (!force && videoCache[src.key]){ allVideos = videoCache[src.key]; afterLoad(); return; }
+  ['controls','export-btn','refresh-btn'].forEach(i=>document.getElementById(i).style.display='none');
+  showLoading('Chargement en cours…', 'Récupération de « '+src.title+' »');
+  try {
+    const items = await fetchAllPlaylistItems(playlistIdFor(src));
+    showLoading('Chargement en cours…', `Détails de ${items.length} vidéos`);
+    const ids = items.map(i => i.contentDetails?.videoId || i.snippet?.resourceId?.videoId).filter(Boolean);
+    const details = await fetchVideoDetails(ids); const map = {}; details.forEach(d => map[d.id]=d);
+    const vids = items.map(item => {
+      const vid = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId; const d = map[vid]||{};
+      const dur = parseDuration(d.contentDetails?.duration||'PT0S');
+      return { id:vid, title:item.snippet?.title||'Sans titre', channel:item.snippet?.videoOwnerChannelTitle||item.snippet?.channelTitle||'—', channelId:item.snippet?.videoOwnerChannelId||'', publishedAt:item.snippet?.publishedAt||'', addedAt:item.snippet?.publishedAt||'', description:item.snippet?.description||'', thumbnails:item.snippet?.thumbnails||{}, duration:dur, isShort:dur.seconds>0&&dur.seconds<=60, views:d.statistics?.viewCount, likes:d.statistics?.likeCount, comments:d.statistics?.commentCount, tags:d.snippet?.tags||[], defaultLang:d.snippet?.defaultLanguage||d.snippet?.defaultAudioLanguage||'', definition:d.contentDetails?.definition||'' };
+    }).filter(v => v.id && !['Vidéo privée','Private video','Deleted video'].includes(v.title));
+    videoCache[src.key] = vids; allVideos = vids; renderSourceList(); afterLoad();
+  } catch(e){ handleApiError(e); }
+}
+function afterLoad(){
+  if (!allVideos.length){ document.getElementById('main-content').innerHTML='<div class="empty"><strong>Source vide</strong>Aucune vidéo lisible.</div>'; return; }
+  document.getElementById('controls').style.display='flex'; document.getElementById('export-btn').style.display='flex'; document.getElementById('refresh-btn').style.display='flex';
+  populateChannelFilter(); render(); maybeAutoProcess();
+}
+function refreshActiveSource(){ if (activeSourceKey){ closePanel(); loadActiveSource(true); } }
+function handleApiError(e){
+  const reason = e.apiReason||'', msg = e.message||''; let title='Erreur', detail=msg;
+  if (reason==='keyInvalid'||/API key not valid/i.test(msg)){ title='Clé API invalide'; detail="Clé refusée par Google. Vérifie-la dans ⚙."; }
+  else if (/accessNotConfigured|not been used|disabled/i.test(msg)){ title='API non activée'; detail="Active « YouTube Data API v3 » dans Google Cloud."; }
+  else if (/playlistNotFound|not be found/i.test(msg)){ title='Source introuvable'; detail="Vérifie l'URL et que le contenu est public."; }
+  else if (/quota/i.test(msg)){ title='Quota dépassé'; detail="Quota quotidien épuisé. Réessaie demain."; }
+  else if (/Failed to fetch|NetworkError/i.test(msg)){ title='Erreur réseau'; detail="Ouvre le fichier en local (pas dans l'aperçu)."; }
+  document.getElementById('main-content').innerHTML = `<div class="empty"><strong>${title}</strong>${detail}<br><button class="btn btn-primary" onclick="toggleConfig()">Ouvrir la config</button></div>`;
+}
+
+/* FILTRES & RENDU */
+function setFilter(d){ currentFilter=d; ['f0','f7','f14','f30'].forEach(i=>document.getElementById(i).classList.remove('active')); document.getElementById('f'+d).classList.add('active'); populateChannelFilter(); render(); }
+function setType(t){ currentType=t; ['t-all','t-short','t-video'].forEach(i=>document.getElementById(i).classList.remove('active')); document.getElementById('t-'+t).classList.add('active'); populateChannelFilter(); render(); }
+function setChannel(c){ currentChannel=c; render(); }
+function setSort(v){ currentSort=v; render(); }
+function dateTypeFiltered(){
+  let v = [...allVideos];
+  if (currentFilter>0){ const c=new Date(); c.setDate(c.getDate()-currentFilter); v = v.filter(x => new Date(x.addedAt)>=c); }
+  if (currentType==='short') v = v.filter(x => x.isShort); else if (currentType==='video') v = v.filter(x => !x.isShort);
+  return v;
+}
+function getFiltered(){
+  let v = dateTypeFiltered(); if (currentChannel) v = v.filter(x => x.channel===currentChannel);
+  if (!showHidden) v = v.filter(x => !hiddenSet.has(x.id));
+  v.sort((a,b)=>{ if(currentSort==='date_desc')return new Date(b.addedAt)-new Date(a.addedAt); if(currentSort==='date_asc')return new Date(a.addedAt)-new Date(b.addedAt); if(currentSort==='duration_desc')return b.duration.seconds-a.duration.seconds; if(currentSort==='duration_asc')return a.duration.seconds-b.duration.seconds; if(currentSort==='title_asc')return a.title.localeCompare(b.title,'fr'); if(currentSort==='views_desc')return (parseInt(b.views)||0)-(parseInt(a.views)||0); return 0; });
+  return v;
+}
+function populateChannelFilter(){
+  const base = dateTypeFiltered(); const counts={}; base.forEach(v => counts[v.channel]=(counts[v.channel]||0)+1);
+  const channels = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]); const sel = document.getElementById('channel-filter'); const prev = currentChannel;
+  sel.innerHTML = `<option value="">Tous les créateurs (${base.length})</option>` + channels.map(c => `<option value="${escHtml(c)}">${escHtml(c)} (${counts[c]})</option>`).join('');
+  if (prev && counts[prev]) sel.value = prev; else { currentChannel=''; sel.value=''; }
+}
+function render(){
+  const v = getFiltered();
+  document.getElementById('count-badge').textContent = `${v.length} vidéo${v.length!==1?'s':''}`;
+  if (!v.length){ document.getElementById('main-content').innerHTML='<div class="empty"><strong>Aucune vidéo</strong>Aucune vidéo ne correspond à ces filtres.</div>'; return; }
+  document.getElementById('main-content').innerHTML = viewMode==='grid' ? '<div class="grid">'+v.map(cardHTML).join('')+'</div>' : '<div class="list">'+v.map(listRowHTML).join('')+'</div>';
+}
+function cardHTML(v){
+  const note = lsGet('notes:'+v.id); const isHidden = hiddenSet.has(v.id);
+  return `<div class="card ${v.id===currentVideoId?'selected':''} ${isHidden?'hidden-v':''}" data-vid="${v.id}" onclick="openPanel('${v.id}')"><div class="thumb-wrap"><img src="${getBestThumb(v.thumbnails)}" alt="" loading="lazy" onerror="this.style.background='#111'">${isHidden?'<div class="hidden-badge">Masquée</div>':(isNew(v.addedAt)?'<div class="new-badge">Nouveau</div>':'')}${v.isShort?'<div class="short-badge">Short</div>':''}${note&&note.trim()?'<div class="note-dot">✎ note</div>':''}<div class="duration-badge">${v.duration.str}</div></div><div class="card-body"><div class="card-title">${escHtml(v.title)}</div><div class="card-channel">${escHtml(v.channel)}</div><div class="card-meta"><span>${relativeDate(v.addedAt)}</span>${v.views?`<span>· ${fmtNum(v.views)} vues</span>`:''}</div></div></div>`;
+}
+function listRowHTML(v){
+  const note = lsGet('notes:'+v.id), summary = lsGet('summary:'+v.id);
+  let sub, label = '', cls = '';
+  if (note && note.trim()){ sub = htmlToPlain(note); label = 'Ma note'; cls = 'is-note'; }
+  else if (summary && summary.trim()){ sub = mdToPlain(summary); label = 'Résumé IA'; cls = 'is-summary'; }
+  else sub = v.description ? v.description.slice(0,260) : '(aucune description)';
+  sub = sub.slice(0,260);
+  const isHidden = hiddenSet.has(v.id);
+  return `<div class="list-row ${v.id===currentVideoId?'selected':''} ${isHidden?'hidden-v':''}" data-vid="${v.id}" onclick="openPanel('${v.id}')"><img class="list-thumb" src="${getBestThumb(v.thumbnails)}" alt="" loading="lazy" onerror="this.style.background='#111'"><div class="list-info"><div class="list-title">${escHtml(v.title)}${isHidden?'<span class="list-badge-hidden">Masquée</span>':''}</div><div class="list-sub ${cls}">${label?`<span class="list-sub-label">${label}</span>`:''}${escHtml(sub)}</div><div class="list-dur">${escHtml(v.channel)} · ${v.duration.str} · ${relativeDate(v.addedAt)}${v.isShort?' · Short':''}</div></div></div>`;
+}
+
+/* EXPORT */
+function exportJSON(scope){
+  document.getElementById('export-menu').classList.remove('open');
+  const src = sources.find(s => s.key===activeSourceKey); const vids = scope==='all' ? [...allVideos] : getFiltered();
+  const payload = {
+    source:{ titre:src?.title||'', type:src?.kind||'', origine:src?.origin||'' },
+    export:{ date:new Date().toISOString(), portee:scope==='all'?'toute la source':'sélection filtrée', periode_jours:scope==='all'?null:(currentFilter||null), type:scope==='all'?'all':currentType, createur:scope==='all'?null:(currentChannel||null), nombre_videos:vids.length },
+    videos: vids.map(v => ({ id:v.id, titre:v.title, createur:v.channel, publiee_le:v.publishedAt, ajoutee_le:v.addedAt, duree:v.duration.str, duree_secondes:v.duration.seconds, type:v.isShort?'short':'video', vues:v.views?parseInt(v.views):null, likes:v.likes?parseInt(v.likes):null, commentaires:v.comments?parseInt(v.comments):null, definition:v.definition, langue:v.defaultLang||null, description:v.description, tags:v.tags, note_perso:noteToMarkdown(lsGet('notes:'+v.id)), masquee:hiddenSet.has(v.id), transcription:lsGet('transcript:'+v.id)||null, resume_ia:lsGet('summary:'+v.id)||null, miniature:getBestThumb(v.thumbnails), url:'https://www.youtube.com/watch?v='+v.id }))
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href=url; a.download=`youtube_${(src?.title||'source').replace(/[^a-z0-9]+/gi,'_').toLowerCase()}_${scope}_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* PANNEAU DÉTAIL */
+function openPanel(videoId){
+  const v = allVideos.find(x => x.id===videoId); if (!v) return;
+  currentVideoId = videoId; currentSummaryMarkdown='';
+  document.querySelectorAll('[data-vid]').forEach(el => el.classList.toggle('selected', el.dataset.vid===videoId));
+  document.getElementById('modal-thumb').src = getBestThumb(v.thumbnails);
+  document.getElementById('modal-title').textContent = v.title;
+  const d = new Date(v.addedAt);
+  document.getElementById('modal-meta').innerHTML = `<span>📺 ${escHtml(v.channel)}</span><span>📅 ${d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</span><span>⏱ ${v.duration.str}${v.isShort?' · Short':''}</span>${v.views?`<span>👁 ${fmtNum(v.views)} vues</span>`:''}${v.likes?`<span>👍 ${fmtNum(v.likes)}</span>`:''}${v.definition==='hd'?'<span>🔷 HD</span>':''}`;
+  document.getElementById('modal-desc').textContent = v.description || 'Aucune description.';
+  const note = lsGet('notes:'+videoId)||''; setNoteEditor(note); document.getElementById('notes-status').textContent=''; document.getElementById('dot-notes').style.display=note.trim()?'inline-block':'none';
+  const transcript = lsGet('transcript:'+videoId)||''; document.getElementById('transcript-text').value=transcript; document.getElementById('dot-transcript').style.display=transcript.trim()?'inline-block':'none';
+  document.getElementById('transcript-status').innerHTML='Récupère la transcription via Apify (token requis dans ⚙), ou colle-la manuellement. Sauvegardée et utilisée pour le résumé IA.';
+  const savedSummary = lsGet('summary:'+videoId); const out = document.getElementById('summary-output');
+  if (savedSummary){ currentSummaryMarkdown=savedSummary; out.innerHTML=renderMarkdown(savedSummary); out.classList.add('visible'); document.getElementById('copy-summary-btn').style.display='inline-block'; document.getElementById('dot-summary').style.display='inline-block'; document.getElementById('gen-summary-btn').textContent='✨ Régénérer'; }
+  else { out.innerHTML=''; out.classList.remove('visible'); document.getElementById('copy-summary-btn').style.display='none'; document.getElementById('dot-summary').style.display='none'; document.getElementById('gen-summary-btn').textContent='✨ Générer un résumé'; }
+  document.getElementById('gen-summary-btn').disabled=false;
+  switchTab(htmlToPlain(note) ? 'notes' : 'description');
+  document.getElementById('yt-link').href = 'https://www.youtube.com/watch?v='+videoId;
+  updateHideBtn();
+  document.getElementById('detail-panel').classList.add('open');
+  document.querySelector('.app-body').classList.add('panel-open');
+}
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane-'+tab).classList.add('active');
+  document.querySelector('.tab-content').scrollTop = 0;
+}
+function closePanel(){ document.getElementById('detail-panel').classList.remove('open'); document.querySelector('.app-body').classList.remove('panel-open'); currentVideoId=null; document.querySelectorAll('[data-vid].selected').forEach(el => el.classList.remove('selected')); }
+
+/* MASQUAGE LOCAL DES VIDÉOS (reste sur YouTube) */
+function updateHideBtn(){
+  const b = document.getElementById('hide-btn'); if (!b || !currentVideoId) return;
+  b.textContent = hiddenSet.has(currentVideoId) ? '↩ Restaurer dans la liste' : '🚫 Retirer de la liste';
+}
+function toggleHidden(id){
+  if (!id) return;
+  const nowHidden = !hiddenSet.has(id);
+  if (nowHidden) hiddenSet.add(id); else hiddenSet.delete(id);
+  lsSet('hidden', JSON.stringify([...hiddenSet]));
+  updateHideBtn();
+  if (nowHidden && !showHidden) closePanel();
+  render();
+}
+function toggleShowHidden(){
+  showHidden = document.getElementById('cfg-show-hidden').checked;
+  lsSet('showhidden', showHidden ? '1' : '0');
+  render();
+}
+
+/* REDIMENSIONNEMENT DU SPLIT */
+let isResizing = false;
+function startResize(e){
+  if (!document.getElementById('detail-panel').classList.contains('open')) return;
+  isResizing = true; e.preventDefault();
+  document.getElementById('resizer').classList.add('dragging');
+  document.getElementById('detail-panel').classList.add('resizing');
+  document.body.style.userSelect = 'none';
+}
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const rect = document.querySelector('.app-body').getBoundingClientRect();
+  let w = (rect.right - e.clientX) / rect.width * 100;
+  w = Math.max(25, Math.min(80, w));
+  document.documentElement.style.setProperty('--panel-w', w.toFixed(1) + '%');
+});
+document.addEventListener('mouseup', () => {
+  if (!isResizing) return; isResizing = false;
+  document.getElementById('resizer').classList.remove('dragging');
+  document.getElementById('detail-panel').classList.remove('resizing');
+  document.body.style.userSelect = '';
+  lsSet('panelW', getComputedStyle(document.documentElement).getPropertyValue('--panel-w').trim() || '50%');
+});
+
+/* NOTES — éditeur HTML (WYSIWYG) avec conversion Markdown à la volée */
+function looksLikeHtml(s){ return /<\/?[a-z][\s\S]*>/i.test(s||''); }
+function looksLikeMarkdown(s){ return /(\*\*|__|^#{1,3}\s|^\s*[-*]\s|`[^`]+`)/m.test(s||''); }
+
+function htmlToPlain(html){ const d = document.createElement('div'); d.innerHTML = html||''; return (d.innerText||d.textContent||'').replace(/\s+/g,' ').trim(); }
+function nodeToMd(node){
+  let out = '';
+  node.childNodes.forEach(n => {
+    if (n.nodeType === 3){ out += n.textContent; return; }
+    if (n.nodeType !== 1) return;
+    const tag = n.tagName.toLowerCase(); const inner = nodeToMd(n);
+    switch(tag){
+      case 'b': case 'strong': out += '**'+inner+'**'; break;
+      case 'i': case 'em': out += '*'+inner+'*'; break;
+      case 'u': out += inner; break;
+      case 'code': out += '`'+inner+'`'; break;
+      case 'h1': out += '\n# '+inner+'\n'; break;
+      case 'h2': out += '\n## '+inner+'\n'; break;
+      case 'h3': case 'h4': out += '\n### '+inner+'\n'; break;
+      case 'br': out += '\n'; break;
+      case 'p': case 'div': out += inner + '\n\n'; break;
+      case 'ul': case 'ol': out += '\n' + inner + '\n'; break;
+      case 'li': out += '- ' + inner.trim() + '\n'; break;
+      case 'a': out += '[' + inner + '](' + (n.getAttribute('href')||'') + ')'; break;
+      default: out += inner;
+    }
+  });
+  return out;
+}
+function htmlToMd(html){ const d = document.createElement('div'); d.innerHTML = html||''; return nodeToMd(d).replace(/\n{3,}/g,'\n\n').trim(); }
+function noteToMarkdown(note){ if (!note) return null; return looksLikeHtml(note) ? htmlToMd(note) : note; }
+
+function setNoteEditor(stored){
+  const ed = document.getElementById('notes-editor');
+  if (!stored || !stored.trim()) ed.innerHTML = '';
+  else if (looksLikeHtml(stored)) ed.innerHTML = stored;       // déjà du HTML
+  else ed.innerHTML = renderMarkdown(stored);                  // import Markdown → HTML
+}
+function saveNotes(){
+  if (!currentVideoId) return;
+  const ed = document.getElementById('notes-editor');
+  const html = ed.innerHTML.trim();
+  const hasContent = !!ed.textContent.trim();
+  lsSet('notes:'+currentVideoId, hasContent ? html : '');
+  document.getElementById('dot-notes').style.display = hasContent ? 'inline-block' : 'none';
+  const s = document.getElementById('notes-status'); s.textContent = '✓ Enregistré'; clearTimeout(window._nt); window._nt = setTimeout(()=>{ s.textContent=''; }, 1500);
+}
+function execFmt(e, cmd){ e.preventDefault(); document.getElementById('notes-editor').focus(); document.execCommand(cmd, false, null); saveNotes(); }
+function execBlock(e, tag){
+  e.preventDefault(); const ed = document.getElementById('notes-editor'); ed.focus();
+  const cur = document.queryCommandValue('formatBlock');
+  document.execCommand('formatBlock', false, (cur && cur.toLowerCase() === tag) ? 'p' : tag);
+  saveNotes();
+}
+function execClear(e){ e.preventDefault(); const ed = document.getElementById('notes-editor'); ed.focus(); document.execCommand('removeFormat'); document.execCommand('formatBlock', false, 'p'); saveNotes(); }
+function copyNoteMarkdown(btn){ const md = htmlToMd(document.getElementById('notes-editor').innerHTML); if (!md.trim()){ flashBtn(btn,'Vide'); return; } navigator.clipboard.writeText(md).then(()=>flashBtn(btn,'Copié ✓')); }
+function copyNoteText(btn){ const t = (document.getElementById('notes-editor').innerText||'').trim(); if (!t){ flashBtn(btn,'Vide'); return; } navigator.clipboard.writeText(t).then(()=>flashBtn(btn,'Copié ✓')); }
+
+// Collage : si le presse-papier contient du Markdown, le convertir en HTML
+document.getElementById('notes-editor').addEventListener('paste', e => {
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (text && looksLikeMarkdown(text)){
+    e.preventDefault();
+    document.execCommand('insertHTML', false, renderMarkdown(text));
+    saveNotes();
+  }
+});
+
+function saveTranscript(){ if (!currentVideoId) return; const val = document.getElementById('transcript-text').value; lsSet('transcript:'+currentVideoId, val); document.getElementById('dot-transcript').style.display=val.trim()?'inline-block':'none'; }
+
+/* APIFY — transcription */
+function decodeEntities(s){ const t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+function formatTranscript(raw){
+  let t = decodeEntities(String(raw));
+  t = t.replace(/\r/g, '').replace(/[ \t]+/g, ' ');
+  t = t.replace(/([.!?…])\s+(?=[A-ZÀ-ÖØ-Þ0-9])/g, '$1\n');  // saut de ligne en fin de phrase
+  t = t.replace(/\n{3,}/g, '\n\n');
+  return t.trim();
+}
+function mdToPlain(md){
+  return String(md).replace(/```[\s\S]*?```/g, ' ').replace(/[*_`#>]/g, '')
+    .replace(/^\s*[-•]\s*/gm, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+function extractTranscriptText(item){
+  if (!item) return '';
+  if (typeof item === 'string') return item;
+  for (const k of ['transcript','text','captions','content','subtitles','data']){
+    const val = item[k]; if (!val) continue;
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) return val.map(x => typeof x==='string'?x:(x.text||x.caption||x.line||'')).filter(Boolean).join('\n');
+  }
+  return JSON.stringify(item, null, 2);
+}
+async function apifyTranscript(videoId){
+  const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${encodeURIComponent(CONFIG.APIFY_TOKEN)}`;
+  const res = await fetch(url, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ languages:['fr','en'], outputFormat:'text', urls:[{ url:'https://www.youtube.com/watch?v='+videoId }] }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || data.message || ('Erreur '+res.status));
+  const item = Array.isArray(data) ? data[0] : data;
+  const text = extractTranscriptText(item);
+  if (!text || !text.trim()) throw new Error('Aucune transcription renvoyée.');
+  return formatTranscript(text);
+}
+async function fetchTranscriptApify(){
+  if (!currentVideoId) return;
+  if (!CONFIG.APIFY_TOKEN){ alert("Ajoute ton token Apify dans ⚙ pour récupérer les transcriptions."); toggleConfig(); return; }
+  const btn = document.getElementById('apify-btn'), status = document.getElementById('transcript-status');
+  btn.disabled=true; btn.textContent='Récupération…'; status.innerHTML='Appel d’Apify en cours (cela peut prendre quelques secondes)…';
+  try {
+    const text = await apifyTranscript(currentVideoId);
+    document.getElementById('transcript-text').value = text; saveTranscript();
+    status.innerHTML = '✓ Transcription récupérée via Apify.';
+  } catch(e){ status.innerHTML = `⚠ ${escHtml(e.message)}. Tu peux coller la transcription manuellement.`; }
+  finally { btn.disabled=false; btn.textContent='⤓ Récupérer (Apify)'; }
+}
+
+/* RÉSUMÉ IA */
+function buildSummaryPrompt(v, transcript){
+  return `Tu es un assistant qui résume des vidéos YouTube. Rédige un résumé clair et structuré en français, au format Markdown.\n\nTitre : ${v.title}\nChaîne : ${v.channel}\nDurée : ${v.duration.str}\n\nDescription :\n${v.description||'(aucune)'}\n\n${transcript ? 'Transcription :\n'+transcript.slice(0,12000) : '(Pas de transcription — base-toi sur le titre et la description.)'}\n\nProduis : un titre court (##), 2-3 phrases de synthèse, puis une liste à puces des points clés. Sois concis et factuel. Réponds uniquement avec le Markdown du résumé.`;
+}
+async function openrouterSummary(v, transcript){
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method:'POST', headers:{ 'content-type':'application/json', 'authorization':'Bearer '+CONFIG.OPENROUTER_KEY, 'HTTP-Referer':location.href, 'X-Title':'Playlists YouTube' }, body: JSON.stringify({ model:CONFIG.MODEL, max_tokens:1024, messages:[{role:'user',content:buildSummaryPrompt(v, transcript)}] }) });
+  const d = await res.json(); if (!res.ok) throw new Error(d.error?.message||('Erreur API ('+res.status+')'));
+  const text = (d.choices?.[0]?.message?.content||'').trim(); if (!text) throw new Error('Réponse vide du modèle.');
+  return text;
+}
+async function generateSummary(){
+  if (!currentVideoId) return; const v = allVideos.find(x => x.id===currentVideoId); if (!v) return;
+  if (!CONFIG.OPENROUTER_KEY){ alert("Ajoute ta clé API OpenRouter dans ⚙ pour générer un résumé."); toggleConfig(); return; }
+  const btn = document.getElementById('gen-summary-btn'), out = document.getElementById('summary-output');
+  btn.disabled=true; btn.textContent='Génération…'; out.classList.add('visible'); out.innerHTML='<span class="summary-loading">Le modèle rédige le résumé…</span>';
+  const transcript = document.getElementById('transcript-text').value.trim();
+  try {
+    const text = await openrouterSummary(v, transcript);
+    currentSummaryMarkdown = text; out.innerHTML = renderMarkdown(text); lsSet('summary:'+currentVideoId, text);
+    document.getElementById('copy-summary-btn').style.display='inline-block'; document.getElementById('dot-summary').style.display='inline-block';
+  } catch(e){ out.innerHTML = `<span style="color:#ff6b6b">Erreur : ${escHtml(e.message)}</span>`; }
+  finally { btn.disabled=false; btn.textContent='✨ Régénérer'; }
+}
+
+/* TRAITEMENT PAR LOT + AUTO + EXPORT/IMPORT */
+function setBatchStatus(msg){ const el = document.getElementById('batch-status'); if (el) el.textContent = msg; }
+function videoNeeds(v){ return { transcript: !(lsGet('transcript:'+v.id)||'').trim(), summary: !(lsGet('summary:'+v.id)||'').trim() }; }
+function markSeen(list){ list.forEach(v => seenSet.add(v.id)); lsSet('seen', JSON.stringify([...seenSet])); }
+
+async function processList(list){
+  if (batchRunning) return;
+  const hasApify = !!CONFIG.APIFY_TOKEN, hasOR = !!CONFIG.OPENROUTER_KEY;
+  const work = list.filter(v => { const n = videoNeeds(v); return (n.transcript && hasApify) || (n.summary && hasOR); });
+  if (!work.length){ setBatchStatus('Rien à traiter (déjà à jour ou clés manquantes).'); return; }
+  batchRunning = true; const btn = document.getElementById('batch-btn'); if (btn) btn.disabled = true;
+  let done = 0, errs = 0;
+  for (const v of work){
+    done++; setBatchStatus(`Traitement ${done}/${work.length} : ${v.title.slice(0,40)}…`);
+    const n = videoNeeds(v);
+    if (n.transcript && hasApify){ try { lsSet('transcript:'+v.id, await apifyTranscript(v.id)); } catch(e){ errs++; } }
+    if (n.summary && hasOR){ const tr = (lsGet('transcript:'+v.id)||'').trim(); try { lsSet('summary:'+v.id, await openrouterSummary(v, tr)); } catch(e){ errs++; } }
+  }
+  batchRunning = false; if (btn) btn.disabled = false;
+  setBatchStatus(`✓ Terminé : ${work.length} vidéo(s) traitée(s)${errs?`, ${errs} échec(s)`:''}.`);
+  render(); if (currentVideoId) openPanel(currentVideoId);
+}
+function processPending(){
+  if (!allVideos.length){ setBatchStatus('Aucune source chargée.'); return; }
+  const hasApify = !!CONFIG.APIFY_TOKEN, hasOR = !!CONFIG.OPENROUTER_KEY;
+  if (!hasApify && !hasOR){ setBatchStatus('Ajoute une clé Apify (transcriptions) et/ou OpenRouter (résumés).'); return; }
+  const work = allVideos.filter(v => { const n = videoNeeds(v); return (n.transcript && hasApify) || (n.summary && hasOR); });
+  if (!work.length){ setBatchStatus('Tout est déjà à jour pour cette source.'); return; }
+  if (!confirm(`Traiter ${work.length} vidéo(s) de « ${(sources.find(s=>s.key===activeSourceKey)||{}).title||''} » ?\nCela consomme des crédits Apify/OpenRouter et peut prendre du temps.`)) return;
+  processList(allVideos);
+}
+function toggleAuto(){
+  autoProcess = document.getElementById('cfg-auto').checked;
+  lsSet('auto', autoProcess ? '1' : '0');
+  if (autoProcess){ markSeen(allVideos); setBatchStatus('Activé : seules les vidéos ajoutées par la suite seront traitées automatiquement.'); }
+  else setBatchStatus('Traitement automatique désactivé.');
+}
+function maybeAutoProcess(){
+  if (!autoProcess || !allVideos.length) return;
+  if (seenSet.size === 0){ markSeen(allVideos); return; }   // 1er passage : on prend l'existant comme référence
+  const newOnes = allVideos.filter(v => !seenSet.has(v.id));
+  markSeen(allVideos);
+  if (newOnes.length) processList(newOnes);
+}
+
+function exportData(){
+  const data = {};
+  for (let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if (k && k.startsWith(STORE)) data[k.slice(STORE.length)] = localStorage.getItem(k); }
+  const payload = { app:'youtube-playlists-viewer', version:1, exportedAt:new Date().toISOString(), data };
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = `youtube-playlists-sauvegarde_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  document.getElementById('iodata-status').textContent = `✓ ${Object.keys(data).length} entrées exportées.`;
+}
+function importData(e){
+  const file = e.target.files[0]; const statusEl = document.getElementById('iodata-status'); if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      if (!obj || typeof obj.data !== 'object') throw new Error('Fichier non reconnu.');
+      if (!confirm('Importer ces données ? Cela remplacera tes réglages, notes, transcriptions et résumés actuels dans ce navigateur.')){ e.target.value=''; return; }
+      Object.entries(obj.data).forEach(([k,v]) => lsSet(k, v));
+      Object.assign(CONFIG, DEFAULTS); loadState();
+      document.documentElement.style.removeProperty('--panel-w'); const pw = lsGet('panelW'); if (pw) document.documentElement.style.setProperty('--panel-w', pw);
+      document.body.classList.toggle('light', (lsGet('theme')||'dark')==='light'); updateThemeIcon(); updateViewIcon();
+      renderSourceList(); updateActiveSourceName();
+      statusEl.textContent = `✓ ${Object.keys(obj.data).length} entrées importées.`;
+      videoCache = {};
+      if (activeSourceKey) loadActiveSource(true);
+    } catch(err){ statusEl.textContent = '✗ ' + err.message; }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+function renderMarkdown(md){
+  let h = escHtml(md);
+  h = h.replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h1>$1</h1>');
+  h = h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  h = h.replace(/(?:^[\-\*] .*(?:\n|$))+/gm, m => '<ul>'+m.trim().split('\n').map(l=>'<li>'+l.replace(/^[\-\*]\s*/,'')+'</li>').join('')+'</ul>');
+  h = h.split('\n\n').map(b => /^\s*<(h\d|ul|li)/.test(b)?b:(b.trim()?'<p>'+b.replace(/\n/g,'<br>')+'</p>':'')).join('');
+  return h;
+}
+function copyText(t, btn){ if (!t) return; navigator.clipboard.writeText(t).then(()=>flashBtn(btn,'Copié ✓')); }
+function copyTextarea(id, btn){ const t = document.getElementById(id).value; if (!t.trim()){ flashBtn(btn,'Vide'); return; } navigator.clipboard.writeText(t).then(()=>flashBtn(btn,'Copié ✓')); }
+function flashBtn(btn,msg){ if(!btn) return; const o=btn.textContent; btn.textContent=msg; setTimeout(()=>{btn.textContent=o;},1300); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closePanel(); });
+
+/* UTILITAIRES */
+function parseDuration(iso){ const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); if(!m) return {seconds:0,str:'0:00'}; const h=+(m[1]||0),mi=+(m[2]||0),s=+(m[3]||0),t=h*3600+mi*60+s; return {seconds:t,str:h>0?`${h}:${String(mi).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${mi}:${String(s).padStart(2,'0')}`}; }
+function fmtNum(n){ if(!n) return '—'; n=parseInt(n); if(n>=1e6)return (n/1e6).toFixed(1)+'M'; if(n>=1e3)return (n/1e3).toFixed(0)+'k'; return n.toLocaleString('fr-FR'); }
+function relativeDate(s){ const d=new Date(s),now=new Date(),diff=Math.floor((now-d)/86400000); if(diff===0)return"Aujourd'hui"; if(diff===1)return"Hier"; if(diff<7)return`Il y a ${diff} jours`; if(diff<30)return`Il y a ${Math.floor(diff/7)} sem.`; if(diff<365)return`Il y a ${Math.floor(diff/30)} mois`; const y=Math.floor(diff/365); return`Il y a ${y} an${y>1?'s':''}`; }
+function isNew(s){ return (new Date()-new Date(s))/86400000 < 7; }
+function getBestThumb(t){ return (t?.maxres||t?.high||t?.medium||t?.default)?.url || ''; }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function showLoading(main,sub){ document.getElementById('main-content').innerHTML = `<div class="loading"><div class="spinner"></div><div class="loading-main">${main}</div><div class="loading-sub">${sub||'Veuillez patienter…'}</div></div>`; }
+
+/* DÉMARRAGE */
+function start(){
+  loadState(); renderSourceList(); updateActiveSourceName();
+  if (validateApiKey(CONFIG.API_KEY)){ document.getElementById('main-content').innerHTML='<div class="empty"><strong>Configuration requise</strong>Renseigne ta clé API YouTube via ⚙, puis ajoute une source.</div>'; return; }
+  if (activeSourceKey) loadActiveSource();
+  else document.getElementById('main-content').innerHTML='<div class="empty"><strong>Aucune source</strong>Ajoute une playlist ou une chaîne via le sélecteur en haut.</div>';
+}
+start();
+</script>
+</body>
+</html>
