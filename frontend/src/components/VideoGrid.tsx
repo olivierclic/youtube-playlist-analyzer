@@ -18,6 +18,7 @@ export function VideoGrid({ videos }: { videos: Video[] }) {
             {v.thumbnail && <img src={v.thumbnail} alt="" loading="lazy" />}
             {!v.is_short && isNew(v.added_at) && <div className="new-badge">Nouveau</div>}
             {v.is_short && <div className="short-badge">Short</div>}
+            {v.note_html && <div className="note-dot">✎ note</div>}
             <div className="duration-badge">{formatDuration(v.duration_s)}</div>
           </div>
           <div className="card-body">

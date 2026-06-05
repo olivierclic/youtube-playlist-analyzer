@@ -10,14 +10,22 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "^3.26.0",
+    "@tiptap/extension-underline": "^3.26.0",
+    "@tiptap/pm": "^3.26.0",
+    "@tiptap/react": "^3.26.0",
+    "@tiptap/starter-kit": "^3.26.0",
+    "marked": "^18.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "turndown": "^7.2.4",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
+    "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"

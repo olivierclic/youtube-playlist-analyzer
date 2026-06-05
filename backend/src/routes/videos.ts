@@ -8,10 +8,10 @@ import {
   touchRefreshed,
 } from "../db/repo.js";
 import { fetchSourceVideos, YoutubeError } from "../services/youtube.js";
-import type { Video } from "../types.js";
+import type { VideoWithUserData } from "../types.js";
 
-/** Sérialise une vidéo pour le front : `tags` JSON décodé en tableau. */
-function serialize(v: Video) {
+/** Sérialise une vidéo pour le front : `tags` JSON décodé, booléens normalisés. */
+function serialize(v: VideoWithUserData) {
   let tags: string[] = [];
   if (v.tags) {
     try {
@@ -21,7 +21,7 @@ function serialize(v: Video) {
       /* tags malformés : on renvoie un tableau vide */
     }
   }
-  return { ...v, tags, is_short: v.is_short === 1 };
+  return { ...v, tags, is_short: v.is_short === 1, hidden: v.hidden === 1 };
 }
 
 const videosRoutes: FastifyPluginAsync = async (app) => {

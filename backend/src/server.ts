@@ -1,10 +1,13 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { serverConfig } from "./config.js";
-import { YoutubeError } from "./services/youtube.js";
+import { asAppError } from "./errors.js";
 import settingsRoutes from "./routes/settings.js";
 import sourcesRoutes from "./routes/sources.js";
 import videosRoutes from "./routes/videos.js";
+import notesRoutes from "./routes/notes.js";
+import transcriptsRoutes from "./routes/transcripts.js";
+import summariesRoutes from "./routes/summaries.js";
 
 export function buildServer() {
   const app = Fastify({
@@ -21,8 +24,9 @@ export function buildServer() {
 
   // Gestionnaire d'erreurs global → format { error: { code, message } }.
   app.setErrorHandler((err: Error & { statusCode?: number; validation?: unknown }, req, reply) => {
-    if (err instanceof YoutubeError) {
-      reply.code(err.status).send({ error: { code: err.code, message: err.message } });
+    const appErr = asAppError(err);
+    if (appErr) {
+      reply.code(appErr.status).send({ error: { code: appErr.code, message: appErr.message } });
       return;
     }
     // Erreurs de validation Fastify (JSON Schema).
@@ -46,6 +50,9 @@ export function buildServer() {
   app.register(settingsRoutes, { prefix: "/api" });
   app.register(sourcesRoutes, { prefix: "/api" });
   app.register(videosRoutes, { prefix: "/api" });
+  app.register(notesRoutes, { prefix: "/api" });
+  app.register(transcriptsRoutes, { prefix: "/api" });
+  app.register(summariesRoutes, { prefix: "/api" });
 
   return app;
 }

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore.js";
 import { formatDuration, formatNum, longDate } from "../lib/format.js";
+import { htmlToPlain } from "../lib/markdown.js";
+import { NotesEditor } from "./NotesEditor.js";
+import { TranscriptTab } from "./TranscriptTab.js";
+import { SummaryTab } from "./SummaryTab.js";
 
 type Tab = "notes" | "description" | "transcript" | "summary";
 
@@ -11,12 +15,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "summary", label: "Résumé IA" },
 ];
 
-const PLACEHOLDER: Record<Exclude<Tab, "description">, string> = {
-  notes: "L'éditeur de notes riches arrive à l'étape 3.",
-  transcript: "La récupération de transcription (Apify) arrive à l'étape 3.",
-  summary: "La génération de résumé IA (OpenRouter) arrive à l'étape 3.",
-};
-
 export function DetailPanel({ resizing }: { resizing: boolean }) {
   const selectedId = useStore((s) => s.selectedVideoId);
   const videos = useStore((s) => s.videos);
@@ -26,9 +24,12 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
   const video = videos.find((v) => v.id === selectedId) ?? null;
   const [tab, setTab] = useState<Tab>("description");
 
-  // À chaque changement de vidéo, on revient sur Description (Notes à l'étape 3).
+  const hasNote = Boolean(video?.note_html && htmlToPlain(video.note_html));
+
+  // À chaque changement de vidéo : Notes si une note existe, sinon Description.
   useEffect(() => {
-    setTab("description");
+    setTab(hasNote ? "notes" : "description");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   return (
@@ -61,25 +62,37 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
           </div>
 
           <div className="tabs">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                className={`tab ${tab === t.id ? "active" : ""}`}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-                {t.id === "description" && video.description ? (
-                  <span className="tab-dot" />
-                ) : null}
-              </button>
-            ))}
+            {TABS.map((t) => {
+              const dot =
+                (t.id === "notes" && hasNote) ||
+                (t.id === "description" && video.description) ||
+                (t.id === "transcript" && video.transcript) ||
+                (t.id === "summary" && video.summary_md);
+              return (
+                <button
+                  key={t.id}
+                  className={`tab ${tab === t.id ? "active" : ""}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                  {dot ? <span className="tab-dot" /> : null}
+                </button>
+              );
+            })}
           </div>
 
           <div className="tab-content">
-            {tab === "description" ? (
+            {tab === "notes" && (
+              <NotesEditor key={video.id} videoId={video.id} initialHtml={video.note_html ?? ""} />
+            )}
+            {tab === "description" && (
               <div className="modal-desc">{video.description || "Aucune description."}</div>
-            ) : (
-              <div className="pane-placeholder">{PLACEHOLDER[tab]}</div>
+            )}
+            {tab === "transcript" && (
+              <TranscriptTab key={video.id} videoId={video.id} initial={video.transcript ?? ""} />
+            )}
+            {tab === "summary" && (
+              <SummaryTab key={video.id} videoId={video.id} initial={video.summary_md ?? ""} />
             )}
           </div>
 

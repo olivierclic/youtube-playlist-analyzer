@@ -59,6 +59,12 @@ interface AppState {
 
   selectVideo: (id: string) => void;
   closePanel: () => void;
+
+  // Données utilisateur
+  saveNote: (id: string, noteHtml: string) => Promise<void>;
+  saveTranscript: (id: string, transcript: string) => Promise<void>;
+  fetchTranscript: (id: string) => Promise<string>;
+  generateSummary: (id: string) => Promise<string>;
 }
 
 function applyTheme(theme: Theme) {
@@ -232,4 +238,33 @@ export const useStore = create<AppState>((set, get) => ({
   closePanel() {
     set({ selectedVideoId: null });
   },
+
+  async saveNote(id, noteHtml) {
+    await api.saveNote(id, noteHtml);
+    patchVideo(set, get, id, { note_html: noteHtml.trim() === "" ? null : noteHtml });
+  },
+  async saveTranscript(id, transcript) {
+    await api.saveTranscript(id, transcript);
+    patchVideo(set, get, id, { transcript: transcript.trim() === "" ? null : transcript });
+  },
+  async fetchTranscript(id) {
+    const { transcript } = await api.fetchTranscript(id);
+    patchVideo(set, get, id, { transcript });
+    return transcript;
+  },
+  async generateSummary(id) {
+    const { summary } = await api.generateSummary(id);
+    patchVideo(set, get, id, { summary_md: summary });
+    return summary;
+  },
 }));
+
+/** Met à jour une vidéo en place dans le tableau `videos`. */
+function patchVideo(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+  id: string,
+  patch: Partial<Video>,
+) {
+  set({ videos: get().videos.map((v) => (v.id === id ? { ...v, ...patch } : v)) });
+}

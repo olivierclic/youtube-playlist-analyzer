@@ -49,6 +49,26 @@ export const api = {
   // Vidéos
   listVideos: (key: string) => request<Video[]>(`/sources/${encodeURIComponent(key)}/videos`),
 
+  // Données utilisateur
+  saveNote: (id: string, note_html: string) =>
+    request<{ ok: true }>(`/videos/${encodeURIComponent(id)}/note`, {
+      method: "PUT",
+      body: JSON.stringify({ note_html }),
+    }),
+  saveTranscript: (id: string, transcript: string) =>
+    request<{ ok: true }>(`/videos/${encodeURIComponent(id)}/transcript`, {
+      method: "PUT",
+      body: JSON.stringify({ transcript }),
+    }),
+  fetchTranscript: (id: string) =>
+    request<{ transcript: string }>(`/videos/${encodeURIComponent(id)}/transcript/fetch`, {
+      method: "POST",
+    }),
+  generateSummary: (id: string) =>
+    request<{ summary: string }>(`/videos/${encodeURIComponent(id)}/summary/generate`, {
+      method: "POST",
+    }),
+
   // Réglages
   getSettings: () => request<SettingsPresence>("/settings"),
   putSettings: (body: {

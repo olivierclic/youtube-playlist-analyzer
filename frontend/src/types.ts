@@ -34,6 +34,11 @@ export interface Video {
   lang: string | null;
   tags: string[];
   position: number;
+  // Données utilisateur (jointure backend)
+  note_html: string | null;
+  transcript: string | null;
+  summary_md: string | null;
+  hidden: boolean;
 }
 
 export interface SettingsPresence {

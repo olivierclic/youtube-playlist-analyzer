@@ -742,6 +742,200 @@ header {
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* Onglets : en-tête + boutons */
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.pane-head h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+  font-weight: 600;
+}
+.btn-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.btn-sm {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-sm:hover {
+  border-color: #888;
+  color: var(--text);
+}
+.btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-sm-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-sm-primary:hover {
+  background: var(--accent2);
+  color: #fff;
+}
+.fmt-btn {
+  min-width: 32px;
+  text-align: center;
+  padding: 6px 9px;
+}
+.fmt-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 6px;
+}
+.m-hint {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.note-status {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 8px;
+  min-height: 14px;
+}
+.summary-error {
+  font-size: 13px;
+  color: #ff6b6b;
+  margin: 8px 0;
+}
+
+/* Textareas (transcription) */
+.m-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+.m-textarea:focus {
+  border-color: var(--accent);
+}
+.m-textarea.transcript {
+  min-height: 260px;
+}
+
+/* Éditeur de notes riche (TipTap) */
+.rich-editor {
+  width: 100%;
+  min-height: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.8;
+  outline: none;
+  overflow-y: auto;
+  word-break: break-word;
+}
+.rich-editor:focus {
+  border-color: var(--accent);
+}
+.rich-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text3);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.rich-editor h1,
+.rich-editor h2,
+.rich-editor h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+  color: var(--text);
+}
+.rich-editor ul,
+.rich-editor ol {
+  padding-left: 22px;
+  margin: 6px 0;
+}
+.rich-editor p {
+  margin: 6px 0;
+}
+.rich-editor code {
+  background: var(--bg3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+/* Sortie résumé IA (Markdown rendu) */
+.summary-output {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-top: 12px;
+}
+.summary-output h1,
+.summary-output h2,
+.summary-output h3 {
+  color: var(--text);
+  font-size: 15px;
+  margin: 14px 0 7px;
+  font-weight: 600;
+}
+.summary-output h1:first-child,
+.summary-output h2:first-child {
+  margin-top: 0;
+}
+.summary-output ul {
+  margin: 7px 0;
+  padding-left: 22px;
+}
+.summary-output li {
+  margin: 4px 0;
+}
+.summary-output p {
+  margin: 7px 0;
+}
+.summary-output strong {
+  color: var(--text);
+}
+.summary-output code {
+  background: var(--bg3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.summary-loading {
+  color: var(--text3);
+  font-style: italic;
+}
 .panel-foot {
   flex-shrink: 0;
   border-top: 1px solid var(--border);

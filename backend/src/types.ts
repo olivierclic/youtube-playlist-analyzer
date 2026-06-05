@@ -50,6 +50,25 @@ export interface Video {
   position: number;
 }
 
+/** Données utilisateur par vidéo (table `video_user_data`). */
+export interface UserData {
+  video_id: string;
+  note_html: string | null;
+  transcript: string | null;
+  summary_md: string | null;
+  hidden: 0 | 1;
+  seen: 0 | 1;
+  updated_at: string;
+}
+
+/** Vidéo + données utilisateur (résultat de la jointure pour le listing). */
+export interface VideoWithUserData extends Video {
+  note_html: string | null;
+  transcript: string | null;
+  summary_md: string | null;
+  hidden: 0 | 1;
+}
+
 /** Présence des clés + préférences renvoyées par GET /api/settings. */
 export interface SettingsPresence {
   youtube: boolean;

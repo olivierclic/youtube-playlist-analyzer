@@ -1,5 +1,12 @@
 import { db } from "./index.js";
-import type { ResolvedSource, Source, SourceWithCount, Video } from "../types.js";
+import type {
+  ResolvedSource,
+  Source,
+  SourceWithCount,
+  UserData,
+  Video,
+  VideoWithUserData,
+} from "../types.js";
 
 // ── Sources ─────────────────────────────────────────────────────────────--
 
@@ -91,8 +98,16 @@ const insertVideoStmt = db.prepare(
 );
 
 const deleteVideosBySourceStmt = db.prepare<[string]>("DELETE FROM videos WHERE source_key = ?");
-const listVideosStmt = db.prepare<[string], Video>(
-  "SELECT * FROM videos WHERE source_key = ? ORDER BY position ASC",
+const listVideosStmt = db.prepare<[string], VideoWithUserData>(
+  `SELECT v.*,
+          u.note_html  AS note_html,
+          u.transcript AS transcript,
+          u.summary_md AS summary_md,
+          COALESCE(u.hidden, 0) AS hidden
+   FROM videos v
+   LEFT JOIN video_user_data u ON u.video_id = v.id
+   WHERE v.source_key = ?
+   ORDER BY v.position ASC`,
 );
 const countVideosStmt = db.prepare<[string], { n: number }>(
   "SELECT COUNT(*) AS n FROM videos WHERE source_key = ?",
@@ -107,10 +122,71 @@ export const replaceSourceVideos = db.transaction((sourceKey: string, videos: Vi
   for (const v of videos) insertVideoStmt.run(v as unknown as Record<string, unknown>);
 });
 
-export function listVideos(sourceKey: string): Video[] {
+export function listVideos(sourceKey: string): VideoWithUserData[] {
   return listVideosStmt.all(sourceKey);
 }
 
 export function countVideos(sourceKey: string): number {
   return countVideosStmt.get(sourceKey)?.n ?? 0;
+}
+
+// ── Données utilisateur par vidéo ───────────────────────────────────────--
+
+const videoExistsStmt = db.prepare<[string], { n: number }>(
+  "SELECT COUNT(*) AS n FROM videos WHERE id = ?",
+);
+const getUserDataStmt = db.prepare<[string], UserData>(
+  "SELECT video_id, note_html, transcript, summary_md, hidden, seen, updated_at FROM video_user_data WHERE video_id = ?",
+);
+
+/** Vrai si au moins une ligne `videos` porte cet id (toutes sources confondues). */
+export function videoExists(videoId: string): boolean {
+  return (videoExistsStmt.get(videoId)?.n ?? 0) > 0;
+}
+
+const getVideoMetaStmt = db.prepare<[string], Pick<
+  Video,
+  "id" | "title" | "channel" | "description" | "duration_s"
+>>(
+  "SELECT id, title, channel, description, duration_s FROM videos WHERE id = ? LIMIT 1",
+);
+
+/** Métadonnées d'une vidéo (1re source trouvée) pour bâtir le prompt de résumé. */
+export function getVideoMeta(videoId: string) {
+  return getVideoMetaStmt.get(videoId);
+}
+
+export function getUserData(videoId: string): UserData | undefined {
+  return getUserDataStmt.get(videoId);
+}
+
+/**
+ * Upsert d'un champ utilisateur (note_html | transcript | summary_md | hidden).
+ * Le nom de colonne est contrôlé (liste blanche), jamais une entrée libre.
+ */
+function makeFieldUpsert(column: "note_html" | "transcript" | "summary_md" | "hidden") {
+  return db.prepare(
+    `INSERT INTO video_user_data (video_id, ${column}, updated_at)
+     VALUES (@id, @value, datetime('now'))
+     ON CONFLICT(video_id) DO UPDATE SET
+       ${column} = excluded.${column},
+       updated_at = datetime('now')`,
+  );
+}
+const setNoteStmt = makeFieldUpsert("note_html");
+const setTranscriptStmt = makeFieldUpsert("transcript");
+const setSummaryStmt = makeFieldUpsert("summary_md");
+const setHiddenStmt = makeFieldUpsert("hidden");
+
+export function setNote(videoId: string, noteHtml: string | null): void {
+  setNoteStmt.run({ id: videoId, value: noteHtml });
+}
+export function setTranscript(videoId: string, transcript: string | null): void {
+  setTranscriptStmt.run({ id: videoId, value: transcript });
+}
+export function setSummary(videoId: string, summaryMd: string | null): void {
+  setSummaryStmt.run({ id: videoId, value: summaryMd });
+}
+export function setHidden(videoId: string, hidden: boolean): void {
+  setHiddenStmt.run({ id: videoId, value: hidden ? 1 : 0 });
 }
