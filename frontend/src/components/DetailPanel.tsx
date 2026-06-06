@@ -6,6 +6,7 @@ import { NotesEditor } from "./NotesEditor.js";
 import { TranscriptTab } from "./TranscriptTab.js";
 import { SummaryEditorTab } from "./SummaryEditorTab.js";
 import { PdfDialog } from "./PdfDialog.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 
 type Tab = "notes" | "description" | "transcript" | "summary" | "summary_detailed";
 
@@ -18,23 +19,37 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function DetailPanel({ resizing }: { resizing: boolean }) {
-  const selectedId = useStore((s) => s.selectedVideoId);
+  const selectedKey = useStore((s) => s.selectedKey);
   const videos = useStore((s) => s.videos);
+  const sources = useStore((s) => s.sources);
   const panelWidth = useStore((s) => s.panelWidth);
   const closePanel = useStore((s) => s.closePanel);
   const setVideoHidden = useStore((s) => s.setVideoHidden);
   const setVideoFavorite = useStore((s) => s.setVideoFavorite);
+  const deleteVideoLocal = useStore((s) => s.deleteVideoLocal);
+  const moveVideoLocal = useStore((s) => s.moveVideoLocal);
 
-  const video = videos.find((v) => v.id === selectedId) ?? null;
+  // selectedKey = `${source_key}|${id}` → on retrouve la copie exacte.
+  const video =
+    videos.find((v) => `${v.source_key}|${v.id}` === selectedKey) ?? null;
+
   const [tab, setTab] = useState<Tab>("description");
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [trashMenu, setTrashMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const hasNote = Boolean(video?.note_html && htmlToPlain(video.note_html));
 
   useEffect(() => {
     setTab(hasNote ? "notes" : "description");
+    setTrashMenu(false);
+    setConfirmDelete(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
+  }, [selectedKey]);
+
+  const moveTargets = video
+    ? sources.filter((s) => s.key !== video.source_key)
+    : [];
 
   return (
     <aside
@@ -84,18 +99,59 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
                 >
                   {video.favorite ? "★" : "☆"}
                 </button>
-                <button
-                  className="meta-icon"
-                  onClick={() => void setVideoHidden(video.id, !video.hidden)}
-                  title={video.hidden ? "Restaurer (rendre visible)" : "Masquer (retirer de la liste)"}
-                >
-                  {video.hidden ? "🚫" : "👁"}
-                </button>
+                <div className="trash-wrap">
+                  <button
+                    className="meta-icon"
+                    onClick={() => setTrashMenu((v) => !v)}
+                    title="Retirer / supprimer"
+                  >
+                    🗑
+                  </button>
+                  {trashMenu && (
+                    <div className="trash-menu">
+                      <button
+                        onClick={() => {
+                          setTrashMenu(false);
+                          void setVideoHidden(video.id, !video.hidden);
+                        }}
+                      >
+                        {video.hidden ? "↩ Restaurer (rendre visible)" : "🙈 Cacher de la liste"}
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          setTrashMenu(false);
+                          setConfirmDelete(true);
+                        }}
+                      >
+                        🗑 Supprimer définitivement
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="modal-head-actions">
                 <button className="btn-sm" onClick={() => setPdfOpen(true)} title="Générer un PDF de la fiche">
                   📄 PDF
                 </button>
+                {moveTargets.length > 0 && (
+                  <select
+                    className="move-select"
+                    value=""
+                    title="Déplacer vers une autre playlist"
+                    onChange={(e) => {
+                      const to = e.target.value;
+                      if (to) void moveVideoLocal(video.id, video.source_key, to);
+                    }}
+                  >
+                    <option value="">↪ Déplacer vers…</option>
+                    {moveTargets.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>
@@ -140,6 +196,19 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
           </div>
 
           {pdfOpen && <PdfDialog video={video} onClose={() => setPdfOpen(false)} />}
+          {confirmDelete && (
+            <ConfirmDialog
+              title="Supprimer définitivement ?"
+              message="La vidéo est retirée de cette playlist dans l'application et ne réapparaîtra plus, même après un rafraîchissement. (Elle reste sur YouTube.)"
+              confirmLabel="Supprimer"
+              danger
+              onConfirm={() => {
+                setConfirmDelete(false);
+                void deleteVideoLocal(video.source_key, video.id);
+              }}
+              onCancel={() => setConfirmDelete(false)}
+            />
+          )}
         </>
       )}
     </aside>

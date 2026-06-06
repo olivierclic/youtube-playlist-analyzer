@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useStore } from "../store/useStore.js";
+import { useStore, ALL_KEY, DUP_KEY } from "../store/useStore.js";
 import { ApiError } from "../api/client.js";
 
 export function SourceSelector() {
@@ -10,12 +10,23 @@ export function SourceSelector() {
   const removeSource = useStore((s) => s.removeSource);
   const renameSource = useStore((s) => s.renameSource);
   const selectSource = useStore((s) => s.selectSource);
+  const showAllSource = useStore((s) => s.showAllSource);
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const activeName = sources.find((s) => s.key === activeKey)?.title ?? "Aucune source";
+  const activeName =
+    activeKey === ALL_KEY
+      ? "Toutes les vidéos"
+      : activeKey === DUP_KEY
+        ? "Doublons"
+        : (sources.find((s) => s.key === activeKey)?.title ?? "Aucune source");
+
+  function pick(key: string) {
+    void selectSource(key);
+    setOpen(false);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +94,31 @@ export function SourceSelector() {
       {open && (
         <div className="source-menu">
           <div>
+            {/* Listes virtuelles */}
+            {(showAllSource || sources.length > 1) && (
+              <div className="source-virtual">
+                {showAllSource && (
+                  <div
+                    className={`source-item ${activeKey === ALL_KEY ? "active" : ""}`}
+                    onClick={() => pick(ALL_KEY)}
+                  >
+                    <div className="si-info">
+                      <div className="si-title">★ Toutes les vidéos</div>
+                      <div className="si-meta">Agrégat de toutes les playlists (doublons inclus)</div>
+                    </div>
+                  </div>
+                )}
+                <div
+                  className={`source-item ${activeKey === DUP_KEY ? "active" : ""}`}
+                  onClick={() => pick(DUP_KEY)}
+                >
+                  <div className="si-info">
+                    <div className="si-title">⧉ Doublons</div>
+                    <div className="si-meta">Vidéos présentes dans plusieurs playlists</div>
+                  </div>
+                </div>
+              </div>
+            )}
             {sources.length === 0 ? (
               <div className="source-empty">Aucune source. Ajoute-en une ci-dessous.</div>
             ) : (

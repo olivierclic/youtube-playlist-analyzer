@@ -34,10 +34,22 @@ CREATE TABLE IF NOT EXISTS videos (
   lang         TEXT,
   tags         TEXT,                  -- JSON
   position     INTEGER DEFAULT 0,     -- ordre dans la playlist
+  deleted      INTEGER DEFAULT 0,     -- suppression locale persistante (par copie source)
   PRIMARY KEY (id, source_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_videos_source ON videos (source_key);
+
+-- Registre permanent des vidéos déjà importées par source (jamais réimportées).
+-- Survit aux suppressions/déplacements locaux ; purgé seulement si la source est supprimée.
+CREATE TABLE IF NOT EXISTS imported_videos (
+  source_key  TEXT NOT NULL REFERENCES sources(key) ON DELETE CASCADE,
+  video_id    TEXT NOT NULL,
+  imported_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (source_key, video_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_imported_source ON imported_videos (source_key);
 
 -- Données utilisateur par vidéo (indépendantes de la source)
 CREATE TABLE IF NOT EXISTS video_user_data (

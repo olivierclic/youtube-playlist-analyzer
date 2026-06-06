@@ -743,6 +743,123 @@ header {
   color: #e0a800;
   border-color: #e0a800;
 }
+.trash-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.trash-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 20;
+  min-width: 220px;
+  overflow: hidden;
+}
+.trash-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.trash-menu button:hover {
+  background: var(--bg3);
+}
+.trash-menu button.danger {
+  color: #ff6b6b;
+  border-top: 1px solid var(--border);
+}
+.move-select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  max-width: 180px;
+}
+
+/* Confirmations applicatives */
+.confirm-dialog {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: var(--shadow);
+}
+.confirm-dialog h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.confirm-msg {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.btn-danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn-danger:hover {
+  background: var(--red2);
+  color: #fff;
+}
+
+/* Dialogue d'export */
+.export-dialog {
+  background: var(--bg2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  width: 100%;
+  max-width: 620px;
+  box-shadow: var(--shadow);
+}
+.export-cols {
+  display: flex;
+  gap: 18px;
+}
+.export-col {
+  flex: 1;
+  min-width: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.export-col-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.export-col-head strong {
+  font-size: 13px;
+  flex: 1;
+}
+.export-col .config-check {
+  padding: 2px 0;
+}
+
+/* Section listes virtuelles du sélecteur */
+.source-virtual {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
 .modal-head-actions {
   margin-top: 10px;
   display: flex;

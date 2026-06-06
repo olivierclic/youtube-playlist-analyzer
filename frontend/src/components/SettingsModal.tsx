@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { useStore } from "../store/useStore.js";
+import { useStore, isVirtual } from "../store/useStore.js";
 import { ApiError } from "../api/client.js";
 import type { SettingsPayload } from "../store/useStore.js";
+import { ExportDialog } from "./ExportDialog.js";
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
@@ -10,11 +11,12 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const setAutoProcess = useStore((s) => s.setAutoProcess);
   const showHidden = useStore((s) => s.showHidden);
   const setShowHidden = useStore((s) => s.setShowHidden);
+  const showAllSource = useStore((s) => s.showAllSource);
+  const setShowAllSource = useStore((s) => s.setShowAllSource);
   const videos = useStore((s) => s.videos);
   const activeKey = useStore((s) => s.activeSourceKey);
   const runBatch = useStore((s) => s.runBatch);
   const batch = useStore((s) => s.batch);
-  const exportData = useStore((s) => s.exportData);
   const importData = useStore((s) => s.importData);
 
   const [keys, setKeys] = useState<SettingsPayload>({});
@@ -24,6 +26,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [promptDetailed, setPromptDetailed] = useState(settings?.summaryDetailedPrompt ?? "");
   const [saveMsg, setSaveMsg] = useState("");
   const [ioMsg, setIoMsg] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const ph = (present: boolean) => (present ? "•••••••• (défini)" : "Non défini");
@@ -52,7 +56,10 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   ).length;
 
   async function onProcess() {
-    if (!activeKey) return;
+    if (!activeKey || isVirtual(activeKey)) {
+      setSaveMsg("Sélectionne une playlist (pas une liste virtuelle) pour traiter.");
+      return;
+    }
     if (!settings?.apify && !settings?.openrouter) {
       setSaveMsg("Ajoute une clé Apify (transcriptions) et/ou OpenRouter (résumés).");
       return;
@@ -72,19 +79,25 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
     try {
       const json = JSON.parse(await file.text());
-      if (!window.confirm("Importer ces données ? Cela remplacera sources, notes, transcriptions et résumés.")) {
-        e.target.value = "";
-        return;
-      }
-      await importData(json);
+      setPendingImport(json); // ouvre le popup de choix d'écrasement
+    } catch (err) {
+      setIoMsg(`✗ ${err instanceof Error ? err.message : "Fichier illisible."}`);
+    }
+  }
+
+  async function runImport(overwrite: boolean) {
+    const json = pendingImport;
+    setPendingImport(null);
+    if (!json) return;
+    try {
+      await importData({ ...json, overwrite });
       setIoMsg("✓ Données importées.");
     } catch (err) {
-      setIoMsg(`✗ ${err instanceof Error ? err.message : "Import impossible."}`);
-    } finally {
-      e.target.value = "";
+      setIoMsg(`✗ ${err instanceof ApiError ? err.message : "Import impossible."}`);
     }
   }
 
@@ -195,7 +208,17 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               checked={showHidden}
               onChange={(e) => setShowHidden(e.target.checked)}
             />
-            Afficher les vidéos masquées (retirées de la liste)
+            Afficher les vidéos masquées (cachées de la liste)
+          </label>
+        </div>
+        <div className="config-row">
+          <label className="config-check">
+            <input
+              type="checkbox"
+              checked={showAllSource}
+              onChange={(e) => setShowAllSource(e.target.checked)}
+            />
+            Afficher la liste « Toutes » (agrégat de toutes les playlists)
           </label>
         </div>
         <div className="config-row">
@@ -221,8 +244,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="config-sep" />
 
         <div className="config-row">
-          <button className="btn" onClick={() => void exportData()}>
-            ⬇ Exporter toutes les données (JSON)
+          <button className="btn" onClick={() => setExportOpen(true)}>
+            ⬇ Exporter… (réglages / playlists)
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
             ⬆ Importer des données
@@ -238,11 +261,37 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="config-hint">
-          Les clés vivent côté serveur (jamais renvoyées au navigateur). Le traitement automatique ne
-          concerne que les vidéos apparues <em>après</em> activation ; utilise « Traiter les vidéos en
-          attente » pour le rattrapage.
+          Les clés vivent côté serveur (jamais renvoyées au navigateur, jamais exportées). Le
+          traitement automatique ne concerne que les nouvelles vidéos importées lors d'un
+          rafraîchissement ; utilise « Traiter les vidéos en attente » pour le rattrapage.
+          <br />
+          Version 1.0.0
         </div>
       </div>
+
+      {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
+      {pendingImport && (
+        <div className="modal-overlay" onClick={() => setPendingImport(null)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Importer ces données</h3>
+            <p className="confirm-msg">
+              En cas de doublon (même playlist ou même vidéo), faut-il écraser les données locales
+              par celles du fichier ?
+            </p>
+            <div className="config-row" style={{ justifyContent: "flex-end", marginTop: 16 }}>
+              <button className="btn" onClick={() => setPendingImport(null)}>
+                Annuler
+              </button>
+              <button className="btn" onClick={() => void runImport(false)}>
+                Conserver le local
+              </button>
+              <button className="btn btn-primary" onClick={() => void runImport(true)}>
+                Écraser
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

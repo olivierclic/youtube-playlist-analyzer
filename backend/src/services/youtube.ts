@@ -215,7 +215,12 @@ function toInt(v: unknown): number | null {
  * Combine items de playlist + détails vidéos en lignes `videos` prêtes pour
  * la base. Filtre les vidéos privées/supprimées (logique du prototype).
  */
-export function buildVideos(items: any[], details: any[], sourceKey: string): Video[] {
+export function buildVideos(
+  items: any[],
+  details: any[],
+  sourceKey: string,
+  skipIds: Set<string> = new Set(),
+): Video[] {
   const map = new Map<string, any>();
   for (const d of details) map.set(d.id, d);
 
@@ -223,7 +228,7 @@ export function buildVideos(items: any[], details: any[], sourceKey: string): Vi
   items.forEach((item, index) => {
     const vid: string | undefined =
       item.contentDetails?.videoId || item.snippet?.resourceId?.videoId;
-    if (!vid) return;
+    if (!vid || skipIds.has(vid)) return;
     const d = map.get(vid) || {};
     const title = item.snippet?.title || "Sans titre";
     if (UNREADABLE_TITLES.has(title)) return;
@@ -257,16 +262,22 @@ export function buildVideos(items: any[], details: any[], sourceKey: string): Vi
   return videos;
 }
 
-/** Orchestration : récupère toutes les vidéos d'une playlist, prêtes pour la base. */
+/**
+ * Orchestration : récupère les vidéos d'une playlist prêtes pour la base.
+ * `knownIds` (déjà importées) sont ignorées : on ne télécharge PAS leurs détails
+ * (économie de quota) et on ne les reconstruit pas.
+ */
 export async function fetchSourceVideos(
   playlistId: string,
   sourceKey: string,
   apiKey: string,
+  knownIds: Set<string> = new Set(),
 ): Promise<Video[]> {
   const items = await fetchAllPlaylistItems(playlistId, apiKey);
-  const ids = items
+  const newIds = items
     .map((i) => i.contentDetails?.videoId || i.snippet?.resourceId?.videoId)
-    .filter((x: unknown): x is string => Boolean(x));
-  const details = ids.length ? await fetchVideoDetails(ids, apiKey) : [];
-  return buildVideos(items, details, sourceKey);
+    .filter((x: unknown): x is string => Boolean(x))
+    .filter((id: string) => !knownIds.has(id));
+  const details = newIds.length ? await fetchVideoDetails(newIds, apiKey) : [];
+  return buildVideos(items, details, sourceKey, knownIds);
 }

@@ -37,9 +37,10 @@ interface AppState {
   theme: Theme;
   panelWidth: string;
   autoProcess: boolean;
+  showAllSource: boolean;
 
-  // Sélection
-  selectedVideoId: string | null;
+  // Sélection (clé composite `source_key|id` car une vidéo peut apparaître sous plusieurs sources)
+  selectedKey: string | null;
 
   // Traitement par lot (progression)
   batch: BatchState | null;
@@ -61,12 +62,13 @@ interface AppState {
   setShowHidden: (v: boolean) => void;
   setFavoritesOnly: (v: boolean) => void;
   setKeyword: (v: string) => void;
+  setShowAllSource: (v: boolean) => void;
 
   toggleView: () => void;
   toggleTheme: () => void;
   setPanelWidth: (w: string, persist?: boolean) => void;
 
-  selectVideo: (id: string) => void;
+  selectVideo: (sourceKey: string, id: string) => void;
   closePanel: () => void;
 
   // Données utilisateur
@@ -78,14 +80,16 @@ interface AppState {
   saveSummary: (id: string, md: string) => Promise<void>;
   saveSummaryDetailed: (id: string, md: string) => Promise<void>;
 
-  // Masquage / favoris
+  // Masquage / favoris / suppression / déplacement
   setVideoHidden: (id: string, hidden: boolean) => Promise<void>;
   setVideoFavorite: (id: string, favorite: boolean) => Promise<void>;
+  deleteVideoLocal: (sourceKey: string, id: string) => Promise<void>;
+  moveVideoLocal: (id: string, from: string, to: string) => Promise<void>;
 
   // Réglages / auto / export-import / batch
   saveSettings: (payload: SettingsPayload) => Promise<void>;
   setAutoProcess: (v: boolean) => Promise<void>;
-  exportData: () => Promise<void>;
+  exportData: (opts: { settings: boolean; sourceKeys?: string[]; fields?: string[] }) => Promise<void>;
   importData: (json: unknown) => Promise<void>;
   runBatch: (opts: { transcripts: boolean; summaries: boolean; videoIds?: string[] }) => Promise<void>;
 }
@@ -108,6 +112,11 @@ export interface SettingsPayload {
   summary_system_prompt?: string;
   summary_detailed_system_prompt?: string;
 }
+
+// Clés des listes virtuelles.
+export const ALL_KEY = "__all__";
+export const DUP_KEY = "__dupes__";
+export const isVirtual = (key: string | null): boolean => key === ALL_KEY || key === DUP_KEY;
 
 function applyTheme(theme: Theme) {
   document.body.classList.toggle("light", theme === "light");
@@ -146,8 +155,9 @@ export const useStore = create<AppState>((set, get) => ({
   theme: "dark",
   panelWidth: "50%",
   autoProcess: false,
+  showAllSource: false,
 
-  selectedVideoId: null,
+  selectedKey: null,
   batch: null,
 
   async init() {
@@ -165,6 +175,7 @@ export const useStore = create<AppState>((set, get) => ({
         panelWidth: p.panel_w || "50%",
         showHidden: p.show_hidden === "1",
         autoProcess: p.auto_process === "1",
+        showAllSource: p.show_all_source === "1",
       });
     } catch {
       applyTheme("dark");
@@ -204,7 +215,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ sources });
     if (get().activeSourceKey === key) {
       const next = sources[0]?.key ?? null;
-      set({ activeSourceKey: next, videos: [], selectedVideoId: null });
+      set({ activeSourceKey: next, videos: [], selectedKey: null });
       if (next) await get().loadVideos(next);
     }
   },
@@ -217,14 +228,14 @@ export const useStore = create<AppState>((set, get) => ({
   async selectSource(key) {
     if (get().activeSourceKey === key) return;
     // On conserve les filtres en cours (exigence du cahier des charges).
-    set({ activeSourceKey: key, selectedVideoId: null });
+    set({ activeSourceKey: key, selectedKey: null });
     await get().loadVideos(key);
   },
 
   async refreshActiveSource() {
     const key = get().activeSourceKey;
-    if (!key) return;
-    set({ loadingVideos: true, videosError: null, selectedVideoId: null });
+    if (!key || isVirtual(key)) return; // refresh = par source réelle uniquement
+    set({ loadingVideos: true, videosError: null, selectedKey: null });
     let newIds: string[] = [];
     try {
       const src = await api.refreshSource(key);
@@ -239,19 +250,23 @@ export const useStore = create<AppState>((set, get) => ({
     }
     set({ loadingVideos: false });
 
-    // Traitement auto des nouvelles vidéos, puis baseline.
+    // Traitement auto des seules nouvelles vidéos importées (pas de baseline nécessaire).
     if (get().autoProcess && newIds.length) {
       await get()
         .runBatch({ transcripts: true, summaries: true, videoIds: newIds })
         .catch(() => undefined);
     }
-    if (get().autoProcess) await api.baseline(key).catch(() => undefined);
   },
 
   async loadVideos(key) {
     set({ loadingVideos: true, videosError: null, videos: [] });
     try {
-      const videos = await api.listVideos(key);
+      const videos =
+        key === ALL_KEY
+          ? await api.listAllVideos()
+          : key === DUP_KEY
+            ? await api.listDuplicates()
+            : await api.listVideos(key);
       set({ videos });
     } catch (e) {
       set({ videosError: errMessage(e) });
@@ -284,6 +299,16 @@ export const useStore = create<AppState>((set, get) => ({
   setKeyword(keyword) {
     set({ keyword });
   },
+  setShowAllSource(showAllSource) {
+    set({ showAllSource });
+    savePref("show_all_source", showAllSource ? "1" : "0");
+    // Si on désactive « Toutes » alors qu'elle est active, on bascule sur une vraie source.
+    if (!showAllSource && get().activeSourceKey === ALL_KEY) {
+      const next = get().sources[0]?.key ?? null;
+      set({ activeSourceKey: next, selectedKey: null });
+      if (next) void get().loadVideos(next);
+    }
+  },
 
   toggleView() {
     const view: ViewMode = get().view === "grid" ? "list" : "grid";
@@ -301,11 +326,11 @@ export const useStore = create<AppState>((set, get) => ({
     if (persist) savePref("panel_w", panelWidth);
   },
 
-  selectVideo(id) {
-    set({ selectedVideoId: id });
+  selectVideo(sourceKey, id) {
+    set({ selectedKey: `${sourceKey}|${id}` });
   },
   closePanel() {
-    set({ selectedVideoId: null });
+    set({ selectedKey: null });
   },
 
   async saveNote(id, noteHtml) {
@@ -347,13 +372,28 @@ export const useStore = create<AppState>((set, get) => ({
     await api.setHidden(id, hidden);
     patchVideo(set, get, id, { hidden });
     // Si on masque et que les masquées ne sont pas affichées, on referme le panneau.
-    if (hidden && !get().showHidden && get().selectedVideoId === id) {
-      set({ selectedVideoId: null });
+    if (hidden && !get().showHidden && get().selectedKey?.endsWith(`|${id}`)) {
+      set({ selectedKey: null });
     }
   },
   async setVideoFavorite(id, favorite) {
     await api.setFavorite(id, favorite);
     patchVideo(set, get, id, { favorite });
+  },
+  async deleteVideoLocal(sourceKey, id) {
+    await api.deleteVideo(sourceKey, id);
+    // Retire la copie (sourceKey,id) de la liste courante et ferme le panneau si besoin.
+    set({
+      videos: get().videos.filter((v) => !(v.id === id && v.source_key === sourceKey)),
+    });
+    if (get().selectedKey === `${sourceKey}|${id}`) set({ selectedKey: null });
+  },
+  async moveVideoLocal(id, from, to) {
+    await api.moveVideo(id, from, to);
+    set({ selectedKey: null });
+    // Recharge la vue courante pour refléter le déplacement.
+    const key = get().activeSourceKey;
+    if (key) await get().loadVideos(key);
   },
 
   async saveSettings(payload) {
@@ -364,13 +404,12 @@ export const useStore = create<AppState>((set, get) => ({
   async setAutoProcess(v) {
     set({ autoProcess: v });
     savePref("auto_process", v ? "1" : "0");
-    // À l'activation, l'existant sert de référence (baseline).
-    const key = get().activeSourceKey;
-    if (v && key) await api.baseline(key).catch(() => undefined);
+    // Plus de baseline : l'import additif garantit que seules les nouveautés au
+    // refresh sont considérées comme « nouvelles ».
   },
 
-  async exportData() {
-    const data = await api.exportData();
+  async exportData(opts) {
+    const data = await api.exportData(opts);
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -385,7 +424,7 @@ export const useStore = create<AppState>((set, get) => ({
   async importData(json) {
     await api.importData(json);
     // Recharge tout depuis le backend.
-    set({ activeSourceKey: null, selectedVideoId: null });
+    set({ activeSourceKey: null, selectedKey: null });
     await get().loadSources();
     const settings = await api.getSettings().catch(() => null);
     if (settings) set({ settings });

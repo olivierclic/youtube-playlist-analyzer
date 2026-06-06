@@ -4,11 +4,10 @@ import {
   countVideos,
   deleteSource,
   getSource,
+  importedIdSet,
+  importNewVideos,
   listSources,
-  markAllSeen,
-  replaceSourceVideos,
   touchRefreshed,
-  unseenVideoIds,
   updateSourceTitle,
   upsertSource,
 } from "../db/repo.js";
@@ -56,9 +55,10 @@ const sourcesRoutes: FastifyPluginAsync = async (app) => {
       const resolved = await resolveSource(url, apiKey);
       upsertSource(resolved);
 
-      // Fetch immédiat : on remplit le cache de vidéos dès l'ajout.
-      const videos = await fetchSourceVideos(resolved.playlistId, resolved.key, apiKey);
-      replaceSourceVideos(resolved.key, videos);
+      // Import additif immédiat (pas d'auto-traitement à l'ajout).
+      const known = importedIdSet(resolved.key);
+      const videos = await fetchSourceVideos(resolved.playlistId, resolved.key, apiKey, known);
+      importNewVideos(resolved.key, videos);
       touchRefreshed(resolved.key);
 
       reply.code(201);
@@ -130,27 +130,13 @@ const sourcesRoutes: FastifyPluginAsync = async (app) => {
         throw new YoutubeError("source_not_found", "Source inconnue.", 404);
       }
       const apiKey = requireYoutubeKey();
-      const videos = await fetchSourceVideos(src.playlist_id, key, apiKey);
-      replaceSourceVideos(key, videos);
+      // Import additif : seules les vidéos jamais importées sont ajoutées.
+      const known = importedIdSet(key);
+      const videos = await fetchSourceVideos(src.playlist_id, key, apiKey, known);
+      const newIds = importNewVideos(key, videos);
       touchRefreshed(key);
-      // Vidéos jamais « vues » → candidates au traitement auto côté front.
-      return { ...sourceWithCount(key), new_video_ids: unseenVideoIds(key) };
-    },
-  );
-
-  // Baseline du traitement auto : marque toutes les vidéos de la source « vues ».
-  app.post(
-    "/sources/:key/baseline",
-    {
-      schema: {
-        params: { type: "object", required: ["key"], properties: { key: { type: "string" } } },
-      },
-    },
-    async (req) => {
-      const { key } = req.params as { key: string };
-      if (!getSource(key)) throw new YoutubeError("source_not_found", "Source inconnue.", 404);
-      const count = markAllSeen(key);
-      return { ok: true, seen: count };
+      // Les IDs fraîchement importés = nouveautés pour le traitement auto.
+      return { ...sourceWithCount(key), new_video_ids: newIds };
     },
   );
 };

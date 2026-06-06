@@ -10,6 +10,7 @@ import transcriptsRoutes from "./routes/transcripts.js";
 import summariesRoutes from "./routes/summaries.js";
 import batchRoutes from "./routes/batch.js";
 import dataRoutes from "./routes/data.js";
+import checkRoutes from "./routes/check.js";
 
 export function buildServer() {
   const app = Fastify({
@@ -57,6 +58,7 @@ export function buildServer() {
   app.register(summariesRoutes, { prefix: "/api" });
   app.register(batchRoutes, { prefix: "/api" });
   app.register(dataRoutes, { prefix: "/api" });
+  app.register(checkRoutes); // routes / et /api/check (chemins absolus)
 
   return app;
 }

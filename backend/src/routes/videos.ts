@@ -1,17 +1,22 @@
 import type { FastifyPluginAsync } from "fastify";
 import { getYoutubeKey } from "../config.js";
 import {
-  countVideos,
+  deleteVideo,
   getSource,
+  importedCount,
+  importedIdSet,
+  importNewVideos,
+  listAllVideos,
+  listDuplicateVideos,
   listVideos,
-  replaceSourceVideos,
+  moveVideo,
   setFavorite,
   setHidden,
   touchRefreshed,
   videoExists,
 } from "../db/repo.js";
 import { fetchSourceVideos, YoutubeError } from "../services/youtube.js";
-import { NotFoundError } from "../errors.js";
+import { BadRequestError, NotFoundError } from "../errors.js";
 import type { VideoWithUserData } from "../types.js";
 
 /** Sérialise une vidéo pour le front : `tags` JSON décodé, booléens normalisés. */
@@ -35,6 +40,12 @@ function serialize(v: VideoWithUserData) {
 }
 
 const videosRoutes: FastifyPluginAsync = async (app) => {
+  // Agrégat de toutes les sources (doublons conservés).
+  app.get("/videos/all", async () => listAllVideos().map(serialize));
+
+  // Vidéos présentes dans plusieurs playlists.
+  app.get("/videos/duplicates", async () => listDuplicateVideos().map(serialize));
+
   app.get(
     "/sources/:key/videos",
     {
@@ -53,12 +64,12 @@ const videosRoutes: FastifyPluginAsync = async (app) => {
         throw new YoutubeError("source_not_found", "Source inconnue.", 404);
       }
 
-      // Repli : cache vide => on tente un fetch (si une clé est dispo).
-      if (countVideos(key) === 0) {
+      // Repli : aucune vidéo jamais importée => premier import (si clé dispo).
+      if (importedCount(key) === 0) {
         const apiKey = getYoutubeKey();
         if (apiKey) {
-          const videos = await fetchSourceVideos(src.playlist_id, key, apiKey);
-          replaceSourceVideos(key, videos);
+          const videos = await fetchSourceVideos(src.playlist_id, key, apiKey, importedIdSet(key));
+          importNewVideos(key, videos);
           touchRefreshed(key);
         }
       }
@@ -110,6 +121,49 @@ const videosRoutes: FastifyPluginAsync = async (app) => {
       if (!videoExists(id)) throw new NotFoundError("Vidéo inconnue.");
       setFavorite(id, favorite);
       return { ok: true, favorite };
+    },
+  );
+
+  // Suppression locale persistante (par copie source).
+  app.delete(
+    "/sources/:key/videos/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["key", "id"],
+          properties: { key: { type: "string" }, id: { type: "string" } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const { key, id } = req.params as { key: string; id: string };
+      if (!deleteVideo(id, key)) throw new NotFoundError("Vidéo inconnue dans cette source.");
+      reply.code(204);
+      return null;
+    },
+  );
+
+  // Déplacement local d'une vidéo d'une playlist à une autre.
+  app.post(
+    "/videos/:id/move",
+    {
+      schema: {
+        params: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
+        body: {
+          type: "object",
+          required: ["from", "to"],
+          additionalProperties: false,
+          properties: { from: { type: "string" }, to: { type: "string" } },
+        },
+      },
+    },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const { from, to } = req.body as { from: string; to: string };
+      if (!getSource(to)) throw new BadRequestError("Playlist cible inconnue.", "target_unknown");
+      const result = moveVideo(id, from, to);
+      return { ok: true, result };
     },
   );
 };

@@ -3,16 +3,18 @@ import { formatDuration, formatNum, isNew, relativeDate } from "../lib/format.js
 import type { Video } from "../types.js";
 
 export function VideoGrid({ videos }: { videos: Video[] }) {
-  const selectedId = useStore((s) => s.selectedVideoId);
+  const selectedKey = useStore((s) => s.selectedKey);
   const selectVideo = useStore((s) => s.selectVideo);
 
   return (
     <div className="grid">
-      {videos.map((v) => (
+      {videos.map((v) => {
+        const rowKey = `${v.source_key}|${v.id}`;
+        return (
         <div
-          key={v.id}
-          className={`card ${v.id === selectedId ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
-          onClick={() => selectVideo(v.id)}
+          key={rowKey}
+          className={`card ${rowKey === selectedKey ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
+          onClick={() => selectVideo(v.source_key, v.id)}
         >
           <div className="thumb-wrap">
             {v.thumbnail && <img src={v.thumbnail} alt="" loading="lazy" />}
@@ -35,7 +37,8 @@ export function VideoGrid({ videos }: { videos: Video[] }) {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

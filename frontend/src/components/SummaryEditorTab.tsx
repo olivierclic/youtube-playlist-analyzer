@@ -3,6 +3,7 @@ import { useStore } from "../store/useStore.js";
 import { ApiError } from "../api/client.js";
 import { htmlToMd, mdToHtml } from "../lib/markdown.js";
 import { RichEditor } from "./RichEditor.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 
 export type SummaryKind = "standard" | "detailed";
 
@@ -35,15 +36,13 @@ export function SummaryEditorTab({
   const [genVersion, setGenVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Recalculé depuis le markdown stocké ; l'éditeur ne se recharge que sur genVersion.
   const initialHtml = useMemo(() => (summaryMd ? mdToHtml(summaryMd) : ""), [summaryMd]);
   const hasContent = Boolean(summaryMd && summaryMd.trim());
 
-  async function onGenerate() {
-    if (hasContent && !window.confirm("Un résumé existe déjà. Le régénérer écrasera le contenu actuel. Continuer ?")) {
-      return;
-    }
+  async function runGenerate() {
     setLoading(true);
     setError("");
     try {
@@ -54,6 +53,11 @@ export function SummaryEditorTab({
     } finally {
       setLoading(false);
     }
+  }
+
+  function onGenerate() {
+    if (hasContent) setConfirmOpen(true); // confirmation applicative avant écrasement
+    else void runGenerate();
   }
 
   const genButton = (
@@ -78,6 +82,18 @@ export function SummaryEditorTab({
         placeholder={hasContent ? LABELS[kind].placeholder : LABELS[kind].empty}
         extraActions={genButton}
       />
+      {confirmOpen && (
+        <ConfirmDialog
+          title="Régénérer le résumé ?"
+          message="Un résumé existe déjà. Le régénérer écrasera le contenu actuel."
+          confirmLabel="Régénérer"
+          onConfirm={() => {
+            setConfirmOpen(false);
+            void runGenerate();
+          }}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -56,8 +56,10 @@ export const api = {
 
   // Vidéos
   listVideos: (key: string) => request<Video[]>(`/sources/${encodeURIComponent(key)}/videos`),
+  listAllVideos: () => request<Video[]>("/videos/all"),
+  listDuplicates: () => request<Video[]>("/videos/duplicates"),
 
-  // Masquage
+  // Masquage / favori / suppression / déplacement
   setHidden: (id: string, hidden: boolean) =>
     request<{ ok: true; hidden: boolean }>(`/videos/${encodeURIComponent(id)}/hidden`, {
       method: "PATCH",
@@ -68,13 +70,23 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ favorite }),
     }),
-  baseline: (key: string) =>
-    request<{ ok: true; seen: number }>(`/sources/${encodeURIComponent(key)}/baseline`, {
+  deleteVideo: (sourceKey: string, id: string) =>
+    request<void>(
+      `/sources/${encodeURIComponent(sourceKey)}/videos/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+  moveVideo: (id: string, from: string, to: string) =>
+    request<{ ok: true; result: string }>(`/videos/${encodeURIComponent(id)}/move`, {
       method: "POST",
+      body: JSON.stringify({ from, to }),
     }),
 
   // Export / import
-  exportData: () => request<Record<string, unknown>>("/data/export"),
+  exportData: (opts: { settings: boolean; sourceKeys?: string[]; fields?: string[] }) =>
+    request<Record<string, unknown>>("/data/export", {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
   importData: (payload: unknown) =>
     request<{ ok: true }>("/data/import", { method: "POST", body: JSON.stringify(payload) }),
 

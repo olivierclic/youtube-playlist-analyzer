@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStore } from "../store/useStore.js";
+import { useStore, isVirtual } from "../store/useStore.js";
 import { SourceSelector } from "./SourceSelector.js";
 import { SettingsModal } from "./SettingsModal.js";
 
@@ -36,7 +36,7 @@ export function Header() {
         <button className="icon-btn" onClick={toggleTheme} title="Thème clair/sombre">
           {theme === "dark" ? "☾" : "☀"}
         </button>
-        {activeKey && (
+        {activeKey && !isVirtual(activeKey) && (
           <button
             className="icon-btn"
             onClick={() => void refresh()}

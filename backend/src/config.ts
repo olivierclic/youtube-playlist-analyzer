@@ -15,6 +15,9 @@ function loadEnv(): void {
 }
 loadEnv();
 
+/** Version applicative (affichée dans la page de diagnostic / les réglages). */
+export const APP_VERSION = "1.0.0";
+
 /**
  * Clés de configuration stockables en base (table `settings`) et leur
  * variable d'environnement de repli + valeur par défaut éventuelle.
@@ -91,7 +94,11 @@ const listSettingsStmt = db.prepare<[], { key: string; value: string | null }>(
 );
 
 // Clés exposées hors `preferences` (gérées explicitement par l'UI).
-const NON_PREFERENCE_KEYS = new Set([SUMMARY_PROMPT_KEY, SUMMARY_DETAILED_PROMPT_KEY]);
+const NON_PREFERENCE_KEYS = new Set([
+  SUMMARY_PROMPT_KEY,
+  SUMMARY_DETAILED_PROMPT_KEY,
+  "ledger_backfilled", // marqueur interne de migration
+]);
 
 /** Réglages non-secrets (préférences UI) : toutes les lignes hors clés de config/prompts. */
 export function listPreferences(): Record<string, string> {

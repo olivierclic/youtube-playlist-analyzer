@@ -10,24 +10,20 @@ export interface FilterState {
   keyword: string;
 }
 
-/** Filtre par période (date d'ajout) + type (short/vidéo). Base du filtre créateur. */
-export function dateTypeFiltered(videos: Video[], period: PeriodFilter, type: TypeFilter): Video[] {
-  let v = videos;
-  if (period > 0) {
-    const cutoff = Date.now() - period * 86400000;
-    v = v.filter((x) => x.added_at && new Date(x.added_at).getTime() >= cutoff);
-  }
-  if (type === "short") v = v.filter((x) => x.is_short);
-  else if (type === "video") v = v.filter((x) => !x.is_short);
-  return v;
-}
-
 const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
 
-/** Applique filtres créateur + tri par-dessus dateTypeFiltered. */
-export function getFiltered(videos: Video[], f: FilterState): Video[] {
-  let v = dateTypeFiltered(videos, f.period, f.type);
-  if (f.channel) v = v.filter((x) => x.channel === f.channel);
+/**
+ * Applique tous les filtres SAUF le créateur (et sans tri).
+ * Sert de base commune au rendu et au comptage par créateur.
+ */
+function applyBaseFilters(videos: Video[], f: FilterState): Video[] {
+  let v = videos;
+  if (f.period > 0) {
+    const cutoff = Date.now() - f.period * 86400000;
+    v = v.filter((x) => x.added_at && new Date(x.added_at).getTime() >= cutoff);
+  }
+  if (f.type === "short") v = v.filter((x) => x.is_short);
+  else if (f.type === "video") v = v.filter((x) => !x.is_short);
   if (f.favoritesOnly) v = v.filter((x) => x.favorite);
   const kw = f.keyword.trim().toLowerCase();
   if (kw) {
@@ -36,6 +32,13 @@ export function getFiltered(videos: Video[], f: FilterState): Video[] {
     );
   }
   if (!f.showHidden) v = v.filter((x) => !x.hidden);
+  return v;
+}
+
+/** Applique le filtre créateur + le tri par-dessus les filtres de base. */
+export function getFiltered(videos: Video[], f: FilterState): Video[] {
+  let v = applyBaseFilters(videos, f);
+  if (f.channel) v = v.filter((x) => x.channel === f.channel);
 
   const sorted = [...v];
   sorted.sort((a, b) => {
@@ -59,13 +62,15 @@ export function getFiltered(videos: Video[], f: FilterState): Video[] {
   return sorted;
 }
 
-/** Compte par créateur sur la base date+type, trié par fréquence décroissante. */
+/**
+ * Compte par créateur sur l'ensemble filtré par TOUS les critères actifs
+ * (période, type, mot-clé, favoris, masquées) SAUF le créateur lui-même.
+ */
 export function channelCounts(
   videos: Video[],
-  period: PeriodFilter,
-  type: TypeFilter,
+  f: FilterState,
 ): { total: number; channels: { name: string; count: number }[] } {
-  const base = dateTypeFiltered(videos, period, type);
+  const base = applyBaseFilters(videos, f);
   const counts = new Map<string, number>();
   for (const v of base) {
     const name = v.channel ?? "—";

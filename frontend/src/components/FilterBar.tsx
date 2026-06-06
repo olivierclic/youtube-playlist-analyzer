@@ -33,6 +33,7 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
   const sort = useStore((s) => s.sort);
   const favoritesOnly = useStore((s) => s.favoritesOnly);
   const keyword = useStore((s) => s.keyword);
+  const showHidden = useStore((s) => s.showHidden);
   const setPeriod = useStore((s) => s.setPeriod);
   const setType = useStore((s) => s.setType);
   const setChannel = useStore((s) => s.setChannel);
@@ -40,10 +41,10 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
   const setFavoritesOnly = useStore((s) => s.setFavoritesOnly);
   const setKeyword = useStore((s) => s.setKeyword);
 
-  // Options créateur reflétant les filtres date+type actifs.
+  // Options créateur reflétant TOUS les filtres actifs (sauf le créateur lui-même).
   const { total, channels } = useMemo(
-    () => channelCounts(videos, period, type),
-    [videos, period, type],
+    () => channelCounts(videos, { period, type, channel: "", sort, favoritesOnly, keyword, showHidden }),
+    [videos, period, type, sort, favoritesOnly, keyword, showHidden],
   );
 
   // Réinitialise le filtre créateur s'il n'a plus d'occurrence.

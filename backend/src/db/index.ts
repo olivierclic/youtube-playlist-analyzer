@@ -29,8 +29,29 @@ function createDb(): Database.Database {
   // Migrations additives pour les bases existantes (colonnes ajoutées après coup).
   ensureColumn(db, "video_user_data", "summary_detailed_md", "TEXT");
   ensureColumn(db, "video_user_data", "favorite", "INTEGER DEFAULT 0");
+  ensureColumn(db, "videos", "deleted", "INTEGER DEFAULT 0");
+
+  backfillImportedLedger(db);
 
   return db;
+}
+
+/**
+ * Initialise le registre `imported_videos` à partir des vidéos déjà présentes,
+ * UNE SEULE FOIS. Sans ça, après mise à jour, le 1er refresh verrait toutes les
+ * vidéos existantes comme « nouvelles » et déclencherait l'auto-traitement en masse.
+ */
+function backfillImportedLedger(db: Database.Database): void {
+  const done = db.prepare("SELECT value FROM settings WHERE key = 'ledger_backfilled'").get() as
+    | { value: string }
+    | undefined;
+  if (done?.value === "1") return;
+  db.exec(
+    "INSERT OR IGNORE INTO imported_videos (source_key, video_id) SELECT source_key, id FROM videos",
+  );
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES ('ledger_backfilled', '1') ON CONFLICT(key) DO UPDATE SET value = '1'",
+  ).run();
 }
 
 /** Ajoute une colonne si elle n'existe pas déjà (ALTER TABLE idempotent). */

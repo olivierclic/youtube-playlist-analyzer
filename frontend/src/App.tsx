@@ -21,7 +21,7 @@ export default function App() {
   const showHidden = useStore((s) => s.showHidden);
   const favoritesOnly = useStore((s) => s.favoritesOnly);
   const keyword = useStore((s) => s.keyword);
-  const selectedId = useStore((s) => s.selectedVideoId);
+  const selectedId = useStore((s) => s.selectedKey);
   const setPanelWidth = useStore((s) => s.setPanelWidth);
 
   const appBodyRef = useRef<HTMLDivElement>(null);

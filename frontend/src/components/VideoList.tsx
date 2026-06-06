@@ -18,18 +18,19 @@ function subText(v: Video): { text: string; label: string; cls: string } {
 }
 
 export function VideoList({ videos }: { videos: Video[] }) {
-  const selectedId = useStore((s) => s.selectedVideoId);
+  const selectedKey = useStore((s) => s.selectedKey);
   const selectVideo = useStore((s) => s.selectVideo);
 
   return (
     <div className="list">
       {videos.map((v) => {
         const sub = subText(v);
+        const rowKey = `${v.source_key}|${v.id}`;
         return (
           <div
-            key={v.id}
-            className={`list-row ${v.id === selectedId ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
-            onClick={() => selectVideo(v.id)}
+            key={rowKey}
+            className={`list-row ${rowKey === selectedKey ? "selected" : ""} ${v.hidden ? "hidden-v" : ""}`}
+            onClick={() => selectVideo(v.source_key, v.id)}
           >
             {v.thumbnail && <img className="list-thumb" src={v.thumbnail} alt="" loading="lazy" />}
             <div className="list-info">
