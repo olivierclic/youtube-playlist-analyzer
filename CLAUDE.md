@@ -46,10 +46,18 @@ docker compose up --build
 
 ## Points d'attention spécifiques
 
+> **MAJ v1.0.0 — modèle d'import ADDITIF (l'app est la source de vérité).** Le refresh n'importe que
+> les vidéos **jamais importées** (registre `imported_videos`, par `source_key`+`video_id`). Il ne
+> supprime jamais et ne met pas à jour les vidéos existantes (stats figées). Suppression locale
+> **persistante** (`videos.deleted`, par copie source) ; **déplacement** local entre playlists
+> (`moveVideo`). Listes virtuelles « Toutes » (doublons inclus) et « Doublons ». Sélection frontend
+> par clé composite `source_key|id`. Ne PAS revenir à un refresh « purge + ré-import » (l'ancien
+> `replaceSourceVideos` a été supprimé). Voir `ARCHITECTURE.md` §4/§5 (à jour).
+
 - **Transcriptions** : l'API YouTube ne permet pas de télécharger le texte (OAuth propriétaire requis). On utilise un **actor Apify** (voir `ARCHITECTURE.md` pour l'ID et le format). Décoder les entités HTML et reformater en phrases (logique déjà présente dans le prototype : `decodeEntities`, `formatTranscript`).
 - **Notes riches** : éditeur HTML (WYSIWYG) avec conversion HTML↔Markdown à l'import/export. Le prototype utilise `document.execCommand` ; pour la version pérenne, **préférer un éditeur dédié** (TipTap ou Lexical) côté React.
 - **Quota YouTube** : 10 000 unités/jour. Mettre en cache les réponses en base et ne rafraîchir que sur demande explicite (bouton refresh) ou pagination.
-- **Suppression de vidéo** : pour l'instant **masquage local** uniquement (champ en base). La vraie suppression côté YouTube (OAuth) est une évolution future documentée, pas à implémenter d'emblée.
+- **Suppression de vidéo** : **masquage** (`hidden`, réversible) ET **suppression définitive locale** (`videos.deleted`, persistante, par copie source) — toutes deux locales. La vraie suppression côté YouTube (OAuth) reste une évolution future, pas à implémenter.
 - Ne pas régresser sur les fonctionnalités existantes du prototype : la liste de `CAHIER_DES_CHARGES.md` fait foi.
 
 ## Ordre de travail suggéré

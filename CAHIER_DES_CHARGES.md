@@ -106,3 +106,21 @@ Outil personnel pour suivre des sources YouTube (playlists ou chaînes), consult
 3. **Détail & données utilisateur** : panneau split redimensionnable, onglets, notes riches (TipTap), transcription (proxy Apify), résumé (proxy OpenRouter), persistance en base.
 4. **Batch & réglages** : traitement séquentiel + progression, auto sur nouvelles vidéos, masquage, export/import, page réglages (clés/override).
 5. **Conteneurisation** : Dockerfiles, `docker-compose`, `.env.example`, labels Traefik configurables, README.
+
+## 8. Ajouts livrés en v1.0.0 (au-delà du cahier initial)
+
+- **Import additif (l'app = source de vérité)** : le refresh n'importe que les vidéos jamais
+  importées (registre par playlist). Pas de réimport des vidéos supprimées/déplacées dans l'app ;
+  pas de suppression des vidéos retirées côté YouTube ; infos des vidéos existantes figées.
+- **Suppression définitive locale** persistante (en plus du masquage), par copie de playlist.
+- **Déplacement** d'une vidéo entre playlists (local).
+- **Listes virtuelles** : « Toutes » (agrégat, doublons inclus, option Réglages) et « Doublons ».
+- **Résumé IA détaillé** (2e résumé, génération manuelle) ; les deux résumés sont **éditables** ;
+  **prompts système** des résumés modifiables dans les Réglages.
+- **Favoris** (vidéo + filtre) ; **filtre par mot-clé** ; filtre créateurs reflétant tous les filtres.
+- **Export PDF** d'une fiche (rubriques au choix, avec miniature).
+- **Export/import** sélectif et **fusionnel** (par playlists et champs ; jamais les clés API ;
+  dédoublonnage + choix écraser/conserver).
+- **Renommage** de l'affichage d'une source ; ouverture de la playlist sur YouTube.
+- **Page de diagnostic** backend (`/` + `/api/check`).
+- Confirmations via **popups applicatives** (plus de boîtes natives).

@@ -84,7 +84,7 @@ youtube-analyzer/
 - Endpoint `GET /api/settings` renvoie **uniquement la présence** des clés (`{ youtube: true, openrouter: false, apify: true, model: "…" }`), **jamais les valeurs**.
 - Endpoint `PUT /api/settings` enregistre les overrides (les clés sont écrites en base, jamais relues en clair côté front).
 
-## 4. Schéma SQLite
+## 4. Schéma SQLite (implémenté en v1.0.0)
 
 ```sql
 -- Sources (playlists / chaînes)
@@ -92,87 +92,111 @@ CREATE TABLE sources (
   key         TEXT PRIMARY KEY,      -- 'pl:<id>' ou 'ch:<channelId>'
   kind        TEXT NOT NULL,         -- 'playlist' | 'channel'
   playlist_id TEXT NOT NULL,         -- playlist réelle (uploads pour une chaîne)
-  title       TEXT NOT NULL,
-  origin      TEXT,                  -- entrée utilisateur d'origine
+  title       TEXT NOT NULL,         -- affichage (renommable)
+  origin      TEXT,
   position    INTEGER DEFAULT 0,
   created_at  TEXT DEFAULT (datetime('now')),
   refreshed_at TEXT
 );
 
--- Vidéos (cache des métadonnées YouTube + liaison source)
+-- Vidéos (métadonnées YouTube + liaison source). Mêmes id sous plusieurs sources = doublons.
 CREATE TABLE videos (
   id           TEXT NOT NULL,        -- videoId YouTube
   source_key   TEXT NOT NULL REFERENCES sources(key) ON DELETE CASCADE,
-  title        TEXT,
-  channel      TEXT,
-  channel_id   TEXT,
-  published_at TEXT,
-  added_at     TEXT,                 -- date d'ajout à la playlist
-  description  TEXT,
-  thumbnail    TEXT,
+  title, channel, channel_id, published_at, added_at, description, thumbnail TEXT,
   duration_s   INTEGER,
   is_short     INTEGER DEFAULT 0,
-  views        INTEGER,
-  likes        INTEGER,
-  comments     INTEGER,
-  definition   TEXT,
-  lang         TEXT,
-  tags         TEXT,                 -- JSON
+  views, likes, comments INTEGER,
+  definition, lang, tags TEXT,       -- tags = JSON
+  position     INTEGER DEFAULT 0,
+  deleted      INTEGER DEFAULT 0,    -- suppression locale persistante (par copie source)
   PRIMARY KEY (id, source_key)
 );
 
--- Données utilisateur par vidéo (indépendantes de la source)
-CREATE TABLE video_user_data (
-  video_id   TEXT PRIMARY KEY,
-  note_html  TEXT,                   -- note riche en HTML
-  transcript TEXT,
-  summary_md TEXT,                   -- résumé en markdown
-  hidden     INTEGER DEFAULT 0,
-  seen       INTEGER DEFAULT 0,      -- pour le traitement auto des nouveautés
-  updated_at TEXT DEFAULT (datetime('now'))
+-- Registre permanent : tout (source, vidéo) déjà importé. Garant de l'import ADDITIF :
+-- une vidéo présente ici n'est jamais réimportée (même supprimée/déplacée dans l'app).
+-- Purgé uniquement si la source est supprimée (CASCADE).
+CREATE TABLE imported_videos (
+  source_key  TEXT NOT NULL REFERENCES sources(key) ON DELETE CASCADE,
+  video_id    TEXT NOT NULL,
+  imported_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (source_key, video_id)
 );
 
--- Réglages clé/valeur (clés API override + préférences)
-CREATE TABLE settings (
-  key   TEXT PRIMARY KEY,            -- 'youtube_api_key', 'theme', 'auto_process', 'show_hidden', 'panel_w', 'view', ...
-  value TEXT
+-- Données utilisateur par vidéo (indépendantes de la source, clé = video_id)
+CREATE TABLE video_user_data (
+  video_id            TEXT PRIMARY KEY,
+  note_html           TEXT,          -- note riche (HTML)
+  transcript          TEXT,
+  summary_md          TEXT,          -- résumé IA (markdown)
+  summary_detailed_md TEXT,          -- résumé IA détaillé (markdown)
+  hidden              INTEGER DEFAULT 0,
+  favorite            INTEGER DEFAULT 0,
+  seen                INTEGER DEFAULT 0,   -- legacy (plus utilisé en v1)
+  updated_at          TEXT DEFAULT (datetime('now'))
 );
+
+-- Réglages clé/valeur (clés API override + préférences + prompts système)
+CREATE TABLE settings ( key TEXT PRIMARY KEY, value TEXT );
 ```
 
 Notes :
-- `video_user_data` est volontairement **indépendant de la source** (clé = `video_id`) pour qu'une note/transcription suive la vidéo même si elle apparaît dans plusieurs playlists.
-- Les clés API stockées dans `settings` ne sont jamais renvoyées au front (cf. §3).
+- **Import additif** : refresh/ajout insèrent uniquement les ID absents du registre de la source ;
+  rien n'est supprimé ni mis à jour. La suppression locale (`videos.deleted=1`) est **par copie
+  source** (gère les doublons). Voir `repo.importNewVideos`, `deleteVideo`, `moveVideo`.
+- `video_user_data` est **indépendant de la source** (clé `video_id`) : note/résumé/favori/masquage
+  suivent la vidéo, partagés entre ses copies dans plusieurs playlists. La **suppression**, elle, est
+  par copie (sur `videos`).
+- `summary_detailed_md` et `favorite` sont ajoutés par migration (`ensureColumn`) ; `imported_videos`
+  est créée au démarrage, avec **backfill une-fois** des vidéos existantes.
+- Les clés API dans `settings` ne sont jamais renvoyées au front (cf. §3) ni exportées.
 
-## 5. Routes API (REST)
+## 5. Routes API (REST) — implémentées en v1.0.0
 
-Toutes préfixées `/api`. Réponses d'erreur : `{ error: { code, message } }`.
+Toutes sous `/api` (sauf la page de diagnostic `GET /`). Erreurs : `{ error: { code, message } }`.
 
 ### Sources
-- `GET  /sources` → liste des sources (avec compte de vidéos).
-- `POST /sources` `{ url }` → résout (playlist/chaîne), vérifie via YouTube, persiste, renvoie la source. Erreur claire si URL invalide/introuvable.
-- `DELETE /sources/:key` → supprime la source (et ses lignes `videos`).
-- `POST /sources/:key/refresh` → re-fetch depuis YouTube, met à jour le cache `videos`.
+- `GET  /sources` → liste + compte de vidéos (hors supprimées).
+- `POST /sources` `{ url }` → résout, vérifie via YouTube, **import additif** des vidéos.
+- `PATCH /sources/:key` `{ title }` → renomme l'affichage.
+- `DELETE /sources/:key` → supprime la source (CASCADE `videos` + `imported_videos`).
+- `POST /sources/:key/refresh` → **import additif** ; renvoie `{ …source, new_video_ids }`
+  (= ID fraîchement importés, pour le traitement auto).
 
 ### Vidéos
-- `GET /sources/:key/videos` → vidéos de la source (depuis le cache ; déclenche un fetch si vide). Le **filtrage/tri se fait côté frontend** (volumes modestes), mais l'API peut accepter des query params optionnels.
-- `PATCH /videos/:id/hidden` `{ hidden }` → masquer/réafficher.
+- `GET /sources/:key/videos` → vidéos de la source (import au 1er accès si registre vide).
+- `GET /videos/all` → agrégat de toutes les sources (doublons inclus).
+- `GET /videos/duplicates` → vidéos présentes sous plusieurs sources.
+- `PATCH /videos/:id/hidden` `{ hidden }` → cacher/réafficher (global par id).
+- `PATCH /videos/:id/favorite` `{ favorite }` → favori (global par id).
+- `DELETE /sources/:key/videos/:id` → **suppression locale persistante** (par copie source).
+- `POST /videos/:id/move` `{ from, to }` → déplace la copie vers une autre playlist (fusion si déjà présente).
+- Filtrage/tri/recherche : **côté frontend**.
 
 ### Données utilisateur
-- `PUT /videos/:id/note` `{ note_html }` → enregistre la note (HTML).
-- `PUT /videos/:id/transcript` `{ transcript }` → enregistre une transcription (collée manuellement).
-- `POST /videos/:id/transcript/fetch` → récupère via Apify (serveur), enregistre, renvoie le texte formaté.
-- `POST /videos/:id/summary/generate` → génère via OpenRouter (serveur), enregistre, renvoie le markdown.
+- `PUT /videos/:id/note` `{ note_html }`.
+- `PUT /videos/:id/transcript` `{ transcript }` ; `POST /videos/:id/transcript/fetch` (Apify).
+- `POST /videos/:id/summary/generate` et `POST /videos/:id/summary-detailed/generate` → génèrent
+  via OpenRouter (récupèrent d'abord la transcription si absente et Apify configuré). Renvoient
+  `{ summary, transcript }`.
+- `PUT /videos/:id/summary` et `PUT /videos/:id/summary-detailed` `{ summary_md }` → sauvegarde des
+  corrections (résumés éditables).
 
-### Batch (synchrone)
-- `POST /sources/:key/process` `{ transcripts: bool, summaries: bool, onlyMissing: bool }` → traite **séquentiellement** les vidéos concernées.
-  - Mécanisme de progression retenu : **réponse en streaming** (`text/event-stream` ou chunked NDJSON) émettant une ligne `{ done, total, currentTitle, errors }` par vidéo, puis un récap final. Le frontend lit le flux et met à jour une barre de progression. (Alternative acceptable si plus simple : endpoint qui démarre le traitement + `GET /process/status` pollé par le front. Choisir l'option la plus simple à implémenter proprement ; documenter le choix.)
-- Logique « nouvelles vidéos » : à chaque refresh, comparer aux `seen` ; si auto activé et non-baseline, traiter les nouvelles puis marquer `seen`.
+### Batch (streaming NDJSON)
+- `POST /sources/:key/process` `{ transcripts, summaries, onlyMissing, videoIds? }` → traite
+  **séquentiellement**, **streaming NDJSON** : lignes `start` / `progress` `{ done, total, currentTitle, errors }`
+  / `error` / `done`. `videoIds` restreint le lot (utilisé pour l'auto sur les nouveautés).
+- Traitement auto = sur les `new_video_ids` renvoyés par le refresh (plus de mécanique `seen`).
 
 ### Réglages & données
-- `GET /settings` → présence des clés + préférences (jamais les valeurs des clés).
-- `PUT /settings` → enregistre overrides clés + préférences.
-- `GET /data/export` → JSON complet (sources, videos user data, settings non sensibles).
-- `POST /data/import` → restaure depuis un JSON (remplace).
+- `GET /settings` → présence des clés + modèle + actor + **prompts système** + préférences.
+- `PUT /settings` → overrides clés (jamais relues), prompts, préférences.
+- `POST /data/export` `{ settings, sourceKeys?, fields? }` → export sélectif (réglages **sans clés API**).
+- `POST /data/import` `{ overwrite, settings?, sources?, videos?, user_data?, imported_videos? }` →
+  **import fusionnel** (dédoublonnage, fusion par champ, écrasement optionnel).
+
+### Diagnostic
+- `GET /` → page HTML (doc + bouton check). `GET /api/check` → diagnostic JSON (DB, présence des clés, version).
 
 ## 6. Intégrations externes (détails)
 

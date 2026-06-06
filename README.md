@@ -1,16 +1,28 @@
-# YouTube Playlist Analyzer
+# YouTube Playlists Analyser — v1.0.0
 
-Outil personnel pour suivre, filtrer, annoter et résumer des **playlists / chaînes YouTube** :
-liste des vidéos avec filtres et tri, notes riches (WYSIWYG), transcriptions (via Apify),
-résumés IA (via OpenRouter), masquage local, export/import des données.
+Outil **personnel** pour suivre, filtrer, annoter et résumer des vidéos YouTube. Tu importes des
+playlists / chaînes, puis **tout se gère dans l'application** : notes riches, transcriptions (Apify),
+résumés IA (OpenRouter), favoris, masquage, suppression, déplacement entre playlists.
 
 Backend **Fastify + TypeScript + SQLite**, frontend **React + Vite + TypeScript**, conteneurisé.
 
-> ⚠️ **Sécurité** : cette application n'a **aucune authentification** et est prévue pour un
-> **réseau privé uniquement**. Ne l'expose **pas** publiquement sans ajouter une authentification
-> (au minimum une *basic auth* / *forward-auth* au niveau de Traefik — voir les labels commentés
-> dans `docker-compose.yml`). Les clés API vivent côté serveur et ne sont **jamais** envoyées au
-> navigateur.
+> ⚠️ **Sécurité** : aucune authentification, prévu pour un **réseau privé uniquement**. Ne pas
+> exposer publiquement sans auth au niveau du reverse proxy (voir labels Traefik dans
+> `docker-compose.yml`). Les clés API vivent côté serveur, ne sont **jamais** renvoyées au
+> navigateur ni exportées.
+
+## Principe directeur (important)
+
+**L'application est la source de vérité, pas YouTube.** Le rafraîchissement d'une playlist ne sert
+qu'à **importer les nouvelles vidéos** :
+
+- Une vidéo déjà importée n'est **jamais réimportée** (identifiée par son ID YouTube, **par
+  playlist**), même si tu l'as ensuite **supprimée** ou **déplacée** dans l'app.
+- Une vidéo retirée d'une playlist côté YouTube **reste** dans l'app.
+- Les infos des vidéos déjà importées sont **figées** au moment de l'import (vues/likes/titre ne sont
+  pas réactualisés) — économise du quota et préserve ta base.
+
+Un **registre permanent** (`imported_videos`) mémorise ce qui a déjà été importé par playlist.
 
 ## Architecture
 
@@ -20,84 +32,99 @@ Frontend (React/Vite, nginx)  ──/api──>  Backend (Fastify)  ──>  You
                                               └── SQLite (volume)
 ```
 
-Le frontend ne parle qu'au backend ; en production, nginx sert le statique et proxifie `/api`
-vers le backend. Détails dans `ARCHITECTURE.md`, fonctionnel dans `CAHIER_DES_CHARGES.md`.
+Détails techniques dans `ARCHITECTURE.md`, fonctionnel dans `CAHIER_DES_CHARGES.md`.
+
+## Fonctionnalités
+
+- **Sources** : playlists ou chaînes ; ajout via l'URL du presse-papier ; renommage de l'affichage ;
+  bouton d'ouverture de la playlist sur YouTube. Import **additif** (cf. ci-dessus).
+- **Vues** grille / liste, **thème** clair/sombre, panneau de détail redimensionnable.
+- **Filtres** : période, type (short/vidéo), créateur (recalculé selon tous les filtres actifs),
+  **mot-clé**, favoris ; tri multiple.
+- **Listes virtuelles** : **« Toutes »** (agrégat de toutes les playlists, doublons inclus —
+  activable dans les Réglages) et **« Doublons »** (vidéos présentes dans plusieurs playlists).
+- **Par vidéo** : **notes** riches (éditeur, copie MD/txt), **transcription** (Apify ou collage),
+  **Résumé IA** et **Résumé détaillé** — tous deux **éditables** ; **favori** ; **cacher** ;
+  **supprimer définitivement** (persistant) ; **déplacer** vers une autre playlist ; **export PDF**
+  de la fiche (rubriques au choix).
+- **Traitement par lot** séquentiel avec progression ; **traitement automatique** des nouvelles
+  vidéos au refresh (pas à l'ajout d'une source).
+- **Export / import** sélectifs : choix des playlists et des champs ; réglages exportés **sans les
+  clés API** ; import fusionnel (dédoublonnage, fusion par champ, choix écraser/conserver).
+- **Réglages** : clés API (write-only), modèle IA, actor Apify, **prompts système** des deux résumés
+  (éditables), options d'affichage.
+- **Page de diagnostic** backend : `http://<backend>/` (doc courte + bouton de check).
 
 ## Prérequis
 
-- Node.js LTS (≥ 20) pour le développement.
-- Docker + Docker Compose pour l'exécution conteneurisée.
-- Une clé **YouTube Data API v3** (obligatoire). OpenRouter et Apify sont optionnels.
+- Node.js LTS (≥ 20) pour le développement ; Docker + Compose pour l'exécution conteneurisée.
+- Une clé **YouTube Data API v3** (obligatoire). OpenRouter (résumés) et Apify (transcriptions) sont
+  optionnels.
 
 ## Configuration
 
-Copie `.env.example` vers `.env` à la racine, puis renseigne tes clés :
+Copier `.env.example` → `.env` à la racine et renseigner les clés :
 
 | Variable | Rôle | Requis |
 |---|---|---|
-| `YOUTUBE_API_KEY` | Lister/résoudre les sources et vidéos | ✅ |
+| `YOUTUBE_API_KEY` | Résoudre/importer les sources et vidéos | ✅ |
 | `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | Résumés IA | optionnel |
 | `APIFY_TOKEN` / `APIFY_ACTOR` | Transcriptions (actor défaut `vKlQCAJRI72MdyK1u`) | optionnel |
-| `PORT` | Port d'écoute du backend (défaut `3000`) | — |
+| `PORT` | Port du backend (défaut `3000`) | — |
 | `CORS_ORIGIN` | Origine autorisée en dev (défaut `http://localhost:5173`) | — |
 | `DB_PATH` | Chemin du fichier SQLite | — |
 | `FRONTEND_PORT` | Port hôte du frontend en Docker (défaut `8080`) | — |
 
-Les clés peuvent aussi être saisies/écrasées depuis la page **Réglages** de l'app
-(stockées côté serveur dans la table `settings`, jamais exposées au front).
+Les clés peuvent aussi être saisies/écrasées depuis la page **Réglages** (stockées côté serveur,
+jamais exposées au front). Les **prompts système** des résumés y sont aussi modifiables.
 
 ## Développement
 
 ```bash
-# Backend (http://localhost:3000)
+# Backend (http://localhost:3000) — page de diagnostic sur /
 cd backend && npm install && npm run dev
 
 # Frontend (http://localhost:5173, proxy /api -> :3000)
 cd frontend && npm install && npm run dev
 ```
 
-Tests et qualité backend :
+Qualité backend :
 
 ```bash
-cd backend && npm test        # vitest
+cd backend && npm test          # vitest (fonctions pures + services mockés)
 cd backend && npm run typecheck
 ```
+
+> Au **premier démarrage** de la v1 sur une base existante, une migration ajoute la colonne
+> `videos.deleted`, crée la table `imported_videos` et **enregistre les vidéos déjà présentes comme
+> « déjà importées »**. Conséquence : le premier refresh ne réimporte rien (pas de re-traitement en
+> masse). C'est sûr et additif.
 
 ## Exécution conteneurisée
 
 ```bash
-cp .env.example .env          # puis remplis tes clés
+cp .env.example .env            # puis remplis tes clés
 docker compose up --build
 ```
 
 - Frontend : http://localhost:8080 (configurable via `FRONTEND_PORT`).
-- Le backend n'expose **pas** de port par défaut (joignable seulement via le réseau interne et le
-  proxy nginx). La base SQLite est persistée dans le volume Docker `sqlite-data`.
+- Backend non exposé par défaut (joignable via le réseau interne + proxy nginx). SQLite persistée
+  dans le volume Docker `sqlite-data`.
 
 ### Derrière Traefik
 
-Le `docker-compose.yml` contient des **labels Traefik commentés** (router, entrypoint,
-certresolver, et une *basic-auth*). Décommente-les et adapte les variables
-(`APP_DOMAIN`, `TRAEFIK_ENTRYPOINT`, `TRAEFIK_CERTRESOLVER`, `BASIC_AUTH_USERS`) à ton installation.
-Rappel : **active une auth au niveau de Traefik**, l'application n'en fournit aucune.
-
-## Fonctionnalités
-
-- Sources multiples (playlists ou chaînes), une active à la fois ; ajout via l'URL du presse-papier.
-- Vues **grille** / **liste**, filtres période + type + créateur, tris, thème clair/sombre.
-- Panneau de détail redimensionnable : **Notes** (éditeur riche, copie MD/txt), **Description**,
-  **Transcription** (Apify ou collage), **Résumé IA** (OpenRouter, rendu Markdown).
-- **Masquage** local des vidéos, **traitement par lot** séquentiel avec progression, **traitement
-  automatique** des nouvelles vidéos, **export/import** JSON.
+Labels Traefik **commentés** dans `docker-compose.yml` (router, entrypoint, certresolver, basic-auth).
+Décommenter/adapter selon ton install. **Active une auth au niveau de Traefik** — l'app n'en fournit
+aucune.
 
 ## Documents
 
 - `CLAUDE.md` — contexte et conventions.
-- `CAHIER_DES_CHARGES.md` — fonctionnalités attendues (fait foi).
+- `CAHIER_DES_CHARGES.md` — fonctionnalités attendues.
 - `ARCHITECTURE.md` — structure, schéma SQLite, routes API, intégrations.
-- `PROTOTYPE.html` — prototype mono-fichier de référence visuelle/comportementale.
+- `PROTOTYPE.html` — prototype mono-fichier de référence visuelle initiale.
 
 ## Évolutions futures (hors périmètre)
 
-Suppression réelle de vidéos YouTube (OAuth), réordonnancement de playlist, authentification
-multi-utilisateurs, file de jobs asynchrone pour le batch. Voir §6 du cahier des charges.
+Édition réelle des playlists YouTube (OAuth `youtube.force-ssl`), authentification multi-utilisateurs,
+file de jobs asynchrone pour le batch, récupération multi-URL Apify. Voir §6 du cahier des charges.
