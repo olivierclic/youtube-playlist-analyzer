@@ -123,6 +123,7 @@ aucune.
 - `CAHIER_DES_CHARGES.md` — fonctionnalités attendues.
 - `ARCHITECTURE.md` — structure, schéma SQLite, routes API, intégrations.
 - `PROTOTYPE.html` — prototype mono-fichier de référence visuelle initiale.
+- `CHANGELOG.md` — journal des modifications par version.
 
 ## Évolutions futures (hors périmètre)
 
