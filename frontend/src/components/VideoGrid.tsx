@@ -22,6 +22,7 @@ export function VideoGrid({ videos }: { videos: Video[] }) {
               isNew(v.added_at) && !v.is_short && <div className="new-badge">Nouveau</div>
             )}
             {v.is_short && <div className="short-badge">Short</div>}
+            {v.favorite && <div className="fav-badge" title="Favori">★</div>}
             {v.note_html && <div className="note-dot">✎ note</div>}
             <div className="duration-badge">{formatDuration(v.duration_s)}</div>
           </div>

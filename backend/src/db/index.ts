@@ -28,6 +28,7 @@ function createDb(): Database.Database {
 
   // Migrations additives pour les bases existantes (colonnes ajoutées après coup).
   ensureColumn(db, "video_user_data", "summary_detailed_md", "TEXT");
+  ensureColumn(db, "video_user_data", "favorite", "INTEGER DEFAULT 0");
 
   return db;
 }

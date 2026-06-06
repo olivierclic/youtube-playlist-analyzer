@@ -6,6 +6,7 @@ export interface FilterState {
   channel: string;
   sort: SortKey;
   showHidden: boolean;
+  favoritesOnly: boolean;
 }
 
 /** Filtre par période (date d'ajout) + type (short/vidéo). Base du filtre créateur. */
@@ -26,6 +27,7 @@ const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
 export function getFiltered(videos: Video[], f: FilterState): Video[] {
   let v = dateTypeFiltered(videos, f.period, f.type);
   if (f.channel) v = v.filter((x) => x.channel === f.channel);
+  if (f.favoritesOnly) v = v.filter((x) => x.favorite);
   if (!f.showHidden) v = v.filter((x) => !x.hidden);
 
   const sorted = [...v];

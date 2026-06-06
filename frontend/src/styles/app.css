@@ -692,6 +692,72 @@ header {
 }
 .modal-head-actions {
   margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+.fav-toggle.is-fav {
+  background: #e0a800;
+  border-color: #e0a800;
+  color: #111;
+}
+.fav-btn.active {
+  background: #e0a800;
+  border-color: #e0a800;
+  color: #111;
+}
+.fav-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffce3a;
+  font-size: 13px;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.new-badge + .fav-badge,
+.fav-badge {
+  /* si « Nouveau » est aussi présent, décale le favori en dessous */
+}
+.card .new-badge ~ .fav-badge {
+  top: 32px;
+}
+.list-fav {
+  color: #e0a800;
+}
+
+/* Dialogue PDF */
+.pdf-dialog {
+  background: var(--bg2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow);
+}
+.pdf-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0;
+}
+.config-check.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pdf-empty {
+  color: var(--text3);
+  font-size: 11px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
 }
 .tabs {
   flex-shrink: 0;

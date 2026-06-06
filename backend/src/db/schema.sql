@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS video_user_data (
   summary_md TEXT,                    -- résumé IA (markdown)
   summary_detailed_md TEXT,           -- résumé IA détaillé (markdown)
   hidden     INTEGER DEFAULT 0,
+  favorite   INTEGER DEFAULT 0,
   seen       INTEGER DEFAULT 0,       -- pour le traitement auto des nouveautés
   updated_at TEXT DEFAULT (datetime('now'))
 );

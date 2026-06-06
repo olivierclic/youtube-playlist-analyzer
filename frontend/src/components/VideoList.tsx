@@ -34,6 +34,7 @@ export function VideoList({ videos }: { videos: Video[] }) {
             {v.thumbnail && <img className="list-thumb" src={v.thumbnail} alt="" loading="lazy" />}
             <div className="list-info">
               <div className="list-title">
+                {v.favorite && <span className="list-fav" title="Favori">★ </span>}
                 {v.title}
                 {v.hidden && <span className="list-badge-hidden">Masquée</span>}
               </div>

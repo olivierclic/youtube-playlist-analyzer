@@ -5,6 +5,7 @@ import {
   getSource,
   listVideos,
   replaceSourceVideos,
+  setFavorite,
   setHidden,
   touchRefreshed,
   videoExists,
@@ -24,7 +25,13 @@ function serialize(v: VideoWithUserData) {
       /* tags malformés : on renvoie un tableau vide */
     }
   }
-  return { ...v, tags, is_short: v.is_short === 1, hidden: v.hidden === 1 };
+  return {
+    ...v,
+    tags,
+    is_short: v.is_short === 1,
+    hidden: v.hidden === 1,
+    favorite: v.favorite === 1,
+  };
 }
 
 const videosRoutes: FastifyPluginAsync = async (app) => {
@@ -80,6 +87,29 @@ const videosRoutes: FastifyPluginAsync = async (app) => {
       if (!videoExists(id)) throw new NotFoundError("Vidéo inconnue.");
       setHidden(id, hidden);
       return { ok: true, hidden };
+    },
+  );
+
+  // Favori.
+  app.patch(
+    "/videos/:id/favorite",
+    {
+      schema: {
+        params: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
+        body: {
+          type: "object",
+          required: ["favorite"],
+          additionalProperties: false,
+          properties: { favorite: { type: "boolean" } },
+        },
+      },
+    },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const { favorite } = req.body as { favorite: boolean };
+      if (!videoExists(id)) throw new NotFoundError("Vidéo inconnue.");
+      setFavorite(id, favorite);
+      return { ok: true, favorite };
     },
   );
 };

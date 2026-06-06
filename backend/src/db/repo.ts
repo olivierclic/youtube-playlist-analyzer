@@ -104,7 +104,8 @@ const listVideosStmt = db.prepare<[string], VideoWithUserData>(
           u.transcript AS transcript,
           u.summary_md AS summary_md,
           u.summary_detailed_md AS summary_detailed_md,
-          COALESCE(u.hidden, 0) AS hidden
+          COALESCE(u.hidden, 0) AS hidden,
+          COALESCE(u.favorite, 0) AS favorite
    FROM videos v
    LEFT JOIN video_user_data u ON u.video_id = v.id
    WHERE v.source_key = ?
@@ -137,7 +138,7 @@ const videoExistsStmt = db.prepare<[string], { n: number }>(
   "SELECT COUNT(*) AS n FROM videos WHERE id = ?",
 );
 const getUserDataStmt = db.prepare<[string], UserData>(
-  "SELECT video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, seen, updated_at FROM video_user_data WHERE video_id = ?",
+  "SELECT video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, favorite, seen, updated_at FROM video_user_data WHERE video_id = ?",
 );
 
 /** Vrai si au moins une ligne `videos` porte cet id (toutes sources confondues). */
@@ -166,7 +167,14 @@ export function getUserData(videoId: string): UserData | undefined {
  * Le nom de colonne est contrôlé (liste blanche), jamais une entrée libre.
  */
 function makeFieldUpsert(
-  column: "note_html" | "transcript" | "summary_md" | "summary_detailed_md" | "hidden" | "seen",
+  column:
+    | "note_html"
+    | "transcript"
+    | "summary_md"
+    | "summary_detailed_md"
+    | "hidden"
+    | "favorite"
+    | "seen",
 ) {
   return db.prepare(
     `INSERT INTO video_user_data (video_id, ${column}, updated_at)
@@ -181,6 +189,7 @@ const setTranscriptStmt = makeFieldUpsert("transcript");
 const setSummaryStmt = makeFieldUpsert("summary_md");
 const setSummaryDetailedStmt = makeFieldUpsert("summary_detailed_md");
 const setHiddenStmt = makeFieldUpsert("hidden");
+const setFavoriteStmt = makeFieldUpsert("favorite");
 const setSeenStmt = makeFieldUpsert("seen");
 
 export function setNote(videoId: string, noteHtml: string | null): void {
@@ -197,6 +206,9 @@ export function setSummaryDetailed(videoId: string, summaryMd: string | null): v
 }
 export function setHidden(videoId: string, hidden: boolean): void {
   setHiddenStmt.run({ id: videoId, value: hidden ? 1 : 0 });
+}
+export function setFavorite(videoId: string, favorite: boolean): void {
+  setFavoriteStmt.run({ id: videoId, value: favorite ? 1 : 0 });
 }
 
 // ── Suivi « vu » (baseline du traitement auto) ──────────────────────────--
@@ -245,8 +257,8 @@ export function dumpData(): DataDump {
 }
 
 const insertUserDataStmt = db.prepare(
-  `INSERT INTO video_user_data (video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, seen, updated_at)
-   VALUES (@video_id, @note_html, @transcript, @summary_md, @summary_detailed_md, @hidden, @seen, @updated_at)`,
+  `INSERT INTO video_user_data (video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, favorite, seen, updated_at)
+   VALUES (@video_id, @note_html, @transcript, @summary_md, @summary_detailed_md, @hidden, @favorite, @seen, @updated_at)`,
 );
 
 /** Remplace toutes les données (sources + vidéos + données utilisateur) en une transaction. */
@@ -275,6 +287,7 @@ export const importData = db.transaction((dump: DataDump): void => {
       summary_md: u.summary_md ?? null,
       summary_detailed_md: u.summary_detailed_md ?? null,
       hidden: u.hidden ?? 0,
+      favorite: u.favorite ?? 0,
       seen: u.seen ?? 0,
       updated_at: u.updated_at ?? new Date().toISOString(),
     });

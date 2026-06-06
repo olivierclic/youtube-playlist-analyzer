@@ -31,10 +31,12 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
   const type = useStore((s) => s.type);
   const channel = useStore((s) => s.channel);
   const sort = useStore((s) => s.sort);
+  const favoritesOnly = useStore((s) => s.favoritesOnly);
   const setPeriod = useStore((s) => s.setPeriod);
   const setType = useStore((s) => s.setType);
   const setChannel = useStore((s) => s.setChannel);
   const setSort = useStore((s) => s.setSort);
+  const setFavoritesOnly = useStore((s) => s.setFavoritesOnly);
 
   // Options créateur reflétant les filtres date+type actifs.
   const { total, channels } = useMemo(
@@ -71,6 +73,16 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
           {t.label}
         </button>
       ))}
+
+      <div className="ctrl-divider" />
+
+      <button
+        className={`filter-btn fav-btn ${favoritesOnly ? "active" : ""}`}
+        onClick={() => setFavoritesOnly(!favoritesOnly)}
+        title="N'afficher que les favoris"
+      >
+        ★ Favoris
+      </button>
 
       <div className="ctrl-divider" />
 

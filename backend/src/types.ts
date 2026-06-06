@@ -58,6 +58,7 @@ export interface UserData {
   summary_md: string | null;
   summary_detailed_md: string | null;
   hidden: 0 | 1;
+  favorite: 0 | 1;
   seen: 0 | 1;
   updated_at: string;
 }
@@ -69,6 +70,7 @@ export interface VideoWithUserData extends Video {
   summary_md: string | null;
   summary_detailed_md: string | null;
   hidden: 0 | 1;
+  favorite: 0 | 1;
 }
 
 /** Présence des clés + préférences renvoyées par GET /api/settings. */

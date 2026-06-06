@@ -29,6 +29,7 @@ interface AppState {
   channel: string;
   sort: SortKey;
   showHidden: boolean;
+  favoritesOnly: boolean;
 
   // Préférences UI
   view: ViewMode;
@@ -56,6 +57,7 @@ interface AppState {
   setChannel: (c: string) => void;
   setSort: (s: SortKey) => void;
   setShowHidden: (v: boolean) => void;
+  setFavoritesOnly: (v: boolean) => void;
 
   toggleView: () => void;
   toggleTheme: () => void;
@@ -73,8 +75,9 @@ interface AppState {
   saveSummary: (id: string, md: string) => Promise<void>;
   saveSummaryDetailed: (id: string, md: string) => Promise<void>;
 
-  // Masquage
+  // Masquage / favoris
   setVideoHidden: (id: string, hidden: boolean) => Promise<void>;
+  setVideoFavorite: (id: string, favorite: boolean) => Promise<void>;
 
   // Réglages / auto / export-import / batch
   saveSettings: (payload: SettingsPayload) => Promise<void>;
@@ -133,6 +136,7 @@ export const useStore = create<AppState>((set, get) => ({
   channel: "",
   sort: "date_desc",
   showHidden: false,
+  favoritesOnly: false,
 
   view: "grid",
   theme: "dark",
@@ -265,6 +269,9 @@ export const useStore = create<AppState>((set, get) => ({
     set({ showHidden });
     savePref("show_hidden", showHidden ? "1" : "0");
   },
+  setFavoritesOnly(favoritesOnly) {
+    set({ favoritesOnly });
+  },
 
   toggleView() {
     const view: ViewMode = get().view === "grid" ? "list" : "grid";
@@ -328,6 +335,10 @@ export const useStore = create<AppState>((set, get) => ({
     if (hidden && !get().showHidden && get().selectedVideoId === id) {
       set({ selectedVideoId: null });
     }
+  },
+  async setVideoFavorite(id, favorite) {
+    await api.setFavorite(id, favorite);
+    patchVideo(set, get, id, { favorite });
   },
 
   async saveSettings(payload) {

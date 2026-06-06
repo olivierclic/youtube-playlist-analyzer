@@ -40,6 +40,7 @@ export interface Video {
   summary_md: string | null;
   summary_detailed_md: string | null;
   hidden: boolean;
+  favorite: boolean;
 }
 
 export interface SettingsPresence {

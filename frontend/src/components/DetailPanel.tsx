@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore.js";
 import { formatDuration, formatNum, longDate } from "../lib/format.js";
 import { htmlToPlain } from "../lib/markdown.js";
-import { printVideoSheet } from "../lib/pdf.js";
 import { NotesEditor } from "./NotesEditor.js";
 import { TranscriptTab } from "./TranscriptTab.js";
 import { SummaryEditorTab } from "./SummaryEditorTab.js";
+import { PdfDialog } from "./PdfDialog.js";
 
 type Tab = "notes" | "description" | "transcript" | "summary" | "summary_detailed";
 
@@ -23,9 +23,11 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
   const panelWidth = useStore((s) => s.panelWidth);
   const closePanel = useStore((s) => s.closePanel);
   const setVideoHidden = useStore((s) => s.setVideoHidden);
+  const setVideoFavorite = useStore((s) => s.setVideoFavorite);
 
   const video = videos.find((v) => v.id === selectedId) ?? null;
   const [tab, setTab] = useState<Tab>("description");
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const hasNote = Boolean(video?.note_html && htmlToPlain(video.note_html));
 
@@ -61,7 +63,14 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
                 {video.definition === "hd" ? <span>🔷 HD</span> : null}
               </div>
               <div className="modal-head-actions">
-                <button className="btn-sm" onClick={() => printVideoSheet(video)} title="Générer un PDF de la fiche">
+                <button
+                  className={`btn-sm fav-toggle ${video.favorite ? "is-fav" : ""}`}
+                  onClick={() => void setVideoFavorite(video.id, !video.favorite)}
+                  title={video.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                >
+                  {video.favorite ? "★ Favori" : "☆ Favori"}
+                </button>
+                <button className="btn-sm" onClick={() => setPdfOpen(true)} title="Générer un PDF de la fiche">
                   📄 PDF
                 </button>
               </div>
@@ -120,6 +129,8 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
               {video.hidden ? "↩ Restaurer dans la liste" : "🚫 Retirer de la liste"}
             </button>
           </div>
+
+          {pdfOpen && <PdfDialog video={video} onClose={() => setPdfOpen(false)} />}
         </>
       )}
     </aside>

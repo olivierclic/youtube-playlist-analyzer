@@ -58,6 +58,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ hidden }),
     }),
+  setFavorite: (id: string, favorite: boolean) =>
+    request<{ ok: true; favorite: boolean }>(`/videos/${encodeURIComponent(id)}/favorite`, {
+      method: "PATCH",
+      body: JSON.stringify({ favorite }),
+    }),
   baseline: (key: string) =>
     request<{ ok: true; seen: number }>(`/sources/${encodeURIComponent(key)}/baseline`, {
       method: "POST",
