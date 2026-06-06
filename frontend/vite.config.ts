@@ -8,6 +8,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Échoue clairement si 5173 est déjà pris, plutôt que de basculer en
+    // silence sur un autre port (et de servir une app sans le proxy /api).
+    strictPort: true,
     proxy: {
       // Le client appelle /api/... en relatif ; Vite proxifie vers le backend.
       "/api": {
