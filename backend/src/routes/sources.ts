@@ -9,6 +9,7 @@ import {
   replaceSourceVideos,
   touchRefreshed,
   unseenVideoIds,
+  updateSourceTitle,
   upsertSource,
 } from "../db/repo.js";
 import { fetchSourceVideos, resolveSource, YoutubeError } from "../services/youtube.js";
@@ -62,6 +63,30 @@ const sourcesRoutes: FastifyPluginAsync = async (app) => {
 
       reply.code(201);
       return sourceWithCount(resolved.key);
+    },
+  );
+
+  // Renommer l'affichage d'une source.
+  app.patch(
+    "/sources/:key",
+    {
+      schema: {
+        params: { type: "object", required: ["key"], properties: { key: { type: "string" } } },
+        body: {
+          type: "object",
+          required: ["title"],
+          additionalProperties: false,
+          properties: { title: { type: "string", minLength: 1 } },
+        },
+      },
+    },
+    async (req) => {
+      const { key } = req.params as { key: string };
+      const { title } = req.body as { title: string };
+      if (!updateSourceTitle(key, title.trim())) {
+        throw new YoutubeError("source_not_found", "Source inconnue.", 404);
+      }
+      return sourceWithCount(key);
     },
   );
 

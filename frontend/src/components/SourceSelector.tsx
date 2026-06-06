@@ -8,6 +8,7 @@ export function SourceSelector() {
   const addingSource = useStore((s) => s.addingSource);
   const addSource = useStore((s) => s.addSource);
   const removeSource = useStore((s) => s.removeSource);
+  const renameSource = useStore((s) => s.renameSource);
   const selectSource = useStore((s) => s.selectSource);
 
   const [open, setOpen] = useState(false);
@@ -55,6 +56,24 @@ export function SourceSelector() {
     }
   }
 
+  async function onRename(e: React.MouseEvent, key: string, current: string) {
+    e.stopPropagation();
+    const next = window.prompt("Nouveau nom de la source :", current);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === current) return;
+    try {
+      await renameSource(key, trimmed);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onOpen(e: React.MouseEvent, playlistId: string) {
+    e.stopPropagation();
+    window.open(`https://www.youtube.com/playlist?list=${playlistId}`, "_blank", "noopener");
+  }
+
   return (
     <div className="source-wrap" ref={wrapRef}>
       <button className="source-btn" onClick={() => setOpen((v) => !v)}>
@@ -82,6 +101,20 @@ export function SourceSelector() {
                       {s.kind === "channel" ? "Chaîne" : "Playlist"} · {s.video_count} vidéos
                     </div>
                   </div>
+                  <button
+                    className="si-action"
+                    title="Ouvrir la playlist sur YouTube"
+                    onClick={(e) => onOpen(e, s.playlist_id)}
+                  >
+                    ↗
+                  </button>
+                  <button
+                    className="si-action"
+                    title="Renommer"
+                    onClick={(e) => void onRename(e, s.key, s.title)}
+                  >
+                    ✎
+                  </button>
                   <button
                     className="si-remove"
                     title="Retirer"

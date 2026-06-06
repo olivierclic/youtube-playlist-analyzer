@@ -32,11 +32,13 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
   const channel = useStore((s) => s.channel);
   const sort = useStore((s) => s.sort);
   const favoritesOnly = useStore((s) => s.favoritesOnly);
+  const keyword = useStore((s) => s.keyword);
   const setPeriod = useStore((s) => s.setPeriod);
   const setType = useStore((s) => s.setType);
   const setChannel = useStore((s) => s.setChannel);
   const setSort = useStore((s) => s.setSort);
   const setFavoritesOnly = useStore((s) => s.setFavoritesOnly);
+  const setKeyword = useStore((s) => s.setKeyword);
 
   // Options créateur reflétant les filtres date+type actifs.
   const { total, channels } = useMemo(
@@ -110,6 +112,14 @@ export function FilterBar({ filteredCount }: { filteredCount: number }) {
           </option>
         ))}
       </select>
+
+      <input
+        className="keyword-input"
+        type="search"
+        placeholder="🔍 Mot-clé…"
+        value={keyword}
+        onChange={(e) => setKeyword(e.target.value)}
+      />
 
       <div className="sep" />
       <div className="count-badge">

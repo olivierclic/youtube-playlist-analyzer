@@ -66,6 +66,15 @@ export function touchRefreshed(key: string): void {
   touchRefreshedStmt.run(key);
 }
 
+const updateSourceTitleStmt = db.prepare<[string, string]>(
+  "UPDATE sources SET title = ? WHERE key = ?",
+);
+
+/** Renomme l'affichage d'une source. */
+export function updateSourceTitle(key: string, title: string): boolean {
+  return updateSourceTitleStmt.run(title, key).changes > 0;
+}
+
 // ── Vidéos ──────────────────────────────────────────────────────────────--
 
 const insertVideoStmt = db.prepare(

@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
+  getApifyActor,
+  getApifyToken,
   getOpenRouterKey,
   getOpenRouterModel,
   getSummaryDetailedPrompt,
@@ -10,9 +12,11 @@ import {
   getVideoMeta,
   setSummary,
   setSummaryDetailed,
+  setTranscript,
   videoExists,
 } from "../db/repo.js";
 import { generateSummary } from "../services/openrouter.js";
+import { fetchTranscript } from "../services/apify.js";
 import { formatDuration } from "../lib/duration.js";
 import { BadRequestError, NotFoundError } from "../errors.js";
 
@@ -37,7 +41,20 @@ const summariesRoutes: FastifyPluginAsync = async (app) => {
     if (!apiKey)
       throw new BadRequestError("Aucune clé OpenRouter configurée.", "openrouter_key_missing");
 
-    const transcript = getUserData(id)?.transcript ?? undefined;
+    let transcript = getUserData(id)?.transcript ?? undefined;
+
+    // Si la transcription manque et qu'un token Apify est dispo, on la récupère d'abord.
+    const apifyToken = getApifyToken();
+    if ((!transcript || !transcript.trim()) && apifyToken) {
+      try {
+        transcript = await fetchTranscript(id, apifyToken, getApifyActor());
+        setTranscript(id, transcript);
+      } catch {
+        // Échec de transcription : on continue le résumé sans (best-effort).
+        transcript = undefined;
+      }
+    }
+
     const systemPrompt = detailed ? getSummaryDetailedPrompt() : getSummaryPrompt();
     const summary = await generateSummary(
       {
@@ -55,7 +72,7 @@ const summariesRoutes: FastifyPluginAsync = async (app) => {
 
     if (detailed) setSummaryDetailed(id, summary);
     else setSummary(id, summary);
-    return { summary };
+    return { summary, transcript: transcript ?? null };
   }
 
   app.post("/videos/:id/summary/generate", { schema: idParams }, async (req) =>

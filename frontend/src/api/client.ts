@@ -43,6 +43,11 @@ export const api = {
     request<Source>("/sources", { method: "POST", body: JSON.stringify({ url }) }),
   deleteSource: (key: string) =>
     request<void>(`/sources/${encodeURIComponent(key)}`, { method: "DELETE" }),
+  renameSource: (key: string, title: string) =>
+    request<Source>(`/sources/${encodeURIComponent(key)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
   refreshSource: (key: string) =>
     request<Source & { new_video_ids: string[] }>(
       `/sources/${encodeURIComponent(key)}/refresh`,
@@ -100,13 +105,15 @@ export const api = {
       method: "POST",
     }),
   generateSummary: (id: string) =>
-    request<{ summary: string }>(`/videos/${encodeURIComponent(id)}/summary/generate`, {
-      method: "POST",
-    }),
+    request<{ summary: string; transcript: string | null }>(
+      `/videos/${encodeURIComponent(id)}/summary/generate`,
+      { method: "POST" },
+    ),
   generateSummaryDetailed: (id: string) =>
-    request<{ summary: string }>(`/videos/${encodeURIComponent(id)}/summary-detailed/generate`, {
-      method: "POST",
-    }),
+    request<{ summary: string; transcript: string | null }>(
+      `/videos/${encodeURIComponent(id)}/summary-detailed/generate`,
+      { method: "POST" },
+    ),
   saveSummary: (id: string, summary_md: string) =>
     request<{ ok: true }>(`/videos/${encodeURIComponent(id)}/summary`, {
       method: "PUT",

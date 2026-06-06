@@ -30,6 +30,7 @@ interface AppState {
   sort: SortKey;
   showHidden: boolean;
   favoritesOnly: boolean;
+  keyword: string;
 
   // Préférences UI
   view: ViewMode;
@@ -48,6 +49,7 @@ interface AppState {
   loadSources: () => Promise<void>;
   addSource: (url: string) => Promise<void>;
   removeSource: (key: string) => Promise<void>;
+  renameSource: (key: string, title: string) => Promise<void>;
   selectSource: (key: string) => Promise<void>;
   refreshActiveSource: () => Promise<void>;
   loadVideos: (key: string) => Promise<void>;
@@ -58,6 +60,7 @@ interface AppState {
   setSort: (s: SortKey) => void;
   setShowHidden: (v: boolean) => void;
   setFavoritesOnly: (v: boolean) => void;
+  setKeyword: (v: string) => void;
 
   toggleView: () => void;
   toggleTheme: () => void;
@@ -137,6 +140,7 @@ export const useStore = create<AppState>((set, get) => ({
   sort: "date_desc",
   showHidden: false,
   favoritesOnly: false,
+  keyword: "",
 
   view: "grid",
   theme: "dark",
@@ -203,6 +207,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ activeSourceKey: next, videos: [], selectedVideoId: null });
       if (next) await get().loadVideos(next);
     }
+  },
+
+  async renameSource(key, title) {
+    const updated = await api.renameSource(key, title);
+    set({ sources: get().sources.map((s) => (s.key === key ? updated : s)) });
   },
 
   async selectSource(key) {
@@ -272,6 +281,9 @@ export const useStore = create<AppState>((set, get) => ({
   setFavoritesOnly(favoritesOnly) {
     set({ favoritesOnly });
   },
+  setKeyword(keyword) {
+    set({ keyword });
+  },
 
   toggleView() {
     const view: ViewMode = get().view === "grid" ? "list" : "grid";
@@ -310,13 +322,16 @@ export const useStore = create<AppState>((set, get) => ({
     return transcript;
   },
   async generateSummary(id) {
-    const { summary } = await api.generateSummary(id);
-    patchVideo(set, get, id, { summary_md: summary });
+    const { summary, transcript } = await api.generateSummary(id);
+    patchVideo(set, get, id, { summary_md: summary, ...(transcript ? { transcript } : {}) });
     return summary;
   },
   async generateSummaryDetailed(id) {
-    const { summary } = await api.generateSummaryDetailed(id);
-    patchVideo(set, get, id, { summary_detailed_md: summary });
+    const { summary, transcript } = await api.generateSummaryDetailed(id);
+    patchVideo(set, get, id, {
+      summary_detailed_md: summary,
+      ...(transcript ? { transcript } : {}),
+    });
     return summary;
   },
   async saveSummary(id, md) {

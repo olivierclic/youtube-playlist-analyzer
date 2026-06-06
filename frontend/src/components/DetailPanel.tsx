@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore.js";
-import { formatDuration, formatNum, longDate } from "../lib/format.js";
+import { formatDuration, longDate } from "../lib/format.js";
 import { htmlToPlain } from "../lib/markdown.js";
 import { NotesEditor } from "./NotesEditor.js";
 import { TranscriptTab } from "./TranscriptTab.js";
@@ -48,28 +48,51 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
           </button>
 
           <div className="modal-head">
-            {video.thumbnail && <img className="modal-thumb" src={video.thumbnail} alt="" />}
+            <a
+              className="modal-thumb-link"
+              href={`https://www.youtube.com/watch?v=${video.id}`}
+              target="_blank"
+              rel="noreferrer"
+              title="Ouvrir la vidéo sur YouTube"
+            >
+              {video.thumbnail && <img className="modal-thumb" src={video.thumbnail} alt="" />}
+            </a>
             <div className="modal-head-text">
               <div className="modal-title">{video.title}</div>
               <div className="modal-meta">
-                <span>📺 {video.channel}</span>
+                {video.channel_id ? (
+                  <a
+                    href={`https://www.youtube.com/channel/${video.channel_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Ouvrir la chaîne"
+                  >
+                    📺 {video.channel}
+                  </a>
+                ) : (
+                  <span>📺 {video.channel}</span>
+                )}
                 <span>📅 {longDate(video.added_at)}</span>
                 <span>
                   ⏱ {formatDuration(video.duration_s)}
                   {video.is_short ? " · Short" : ""}
                 </span>
-                {video.views ? <span>👁 {formatNum(video.views)} vues</span> : null}
-                {video.likes ? <span>👍 {formatNum(video.likes)}</span> : null}
-                {video.definition === "hd" ? <span>🔷 HD</span> : null}
-              </div>
-              <div className="modal-head-actions">
                 <button
-                  className={`btn-sm fav-toggle ${video.favorite ? "is-fav" : ""}`}
+                  className={`meta-icon ${video.favorite ? "is-fav" : ""}`}
                   onClick={() => void setVideoFavorite(video.id, !video.favorite)}
                   title={video.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
                 >
-                  {video.favorite ? "★ Favori" : "☆ Favori"}
+                  {video.favorite ? "★" : "☆"}
                 </button>
+                <button
+                  className="meta-icon"
+                  onClick={() => void setVideoHidden(video.id, !video.hidden)}
+                  title={video.hidden ? "Restaurer (rendre visible)" : "Masquer (retirer de la liste)"}
+                >
+                  {video.hidden ? "🚫" : "👁"}
+                </button>
+              </div>
+              <div className="modal-head-actions">
                 <button className="btn-sm" onClick={() => setPdfOpen(true)} title="Générer un PDF de la fiche">
                   📄 PDF
                 </button>
@@ -114,20 +137,6 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
             {tab === "summary_detailed" && (
               <SummaryEditorTab key={`${video.id}-d`} videoId={video.id} kind="detailed" summaryMd={video.summary_detailed_md} />
             )}
-          </div>
-
-          <div className="panel-foot">
-            <a
-              className="btn btn-primary"
-              href={`https://www.youtube.com/watch?v=${video.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              ▶ Ouvrir sur YouTube
-            </a>
-            <button className="btn" onClick={() => void setVideoHidden(video.id, !video.hidden)}>
-              {video.hidden ? "↩ Restaurer dans la liste" : "🚫 Retirer de la liste"}
-            </button>
           </div>
 
           {pdfOpen && <PdfDialog video={video} onClose={() => setPdfOpen(false)} />}

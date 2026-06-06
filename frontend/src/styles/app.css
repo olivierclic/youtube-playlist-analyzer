@@ -173,15 +173,20 @@ header {
   font-size: 11px;
   color: var(--text3);
 }
-.source-item .si-remove {
+.source-item .si-remove,
+.source-item .si-action {
   background: none;
   border: none;
   color: var(--text3);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+}
+.source-item .si-action:hover {
+  color: var(--accent);
+  background: var(--bg);
 }
 .source-item .si-remove:hover {
   color: var(--red);
@@ -295,6 +300,19 @@ header {
   font-size: 12px;
   color: var(--text3);
   white-space: nowrap;
+}
+.keyword-input {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 18px;
+  font-size: 13px;
+  outline: none;
+  max-width: 200px;
+}
+.keyword-input:focus {
+  border-color: var(--accent);
 }
 
 /* WORKSPACE SPLIT */
@@ -685,10 +703,45 @@ header {
   font-size: 12px;
   color: var(--text2);
 }
-.modal-meta span {
+.modal-meta span,
+.modal-meta a {
   display: flex;
   align-items: center;
   gap: 5px;
+}
+.modal-meta a {
+  color: var(--text2);
+  text-decoration: none;
+}
+.modal-meta a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.modal-thumb-link {
+  display: block;
+  flex-shrink: 0;
+}
+.modal-thumb-link:hover .modal-thumb {
+  outline: 2px solid var(--accent);
+}
+.meta-icon {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+.meta-icon:hover {
+  border-color: #888;
+  color: var(--text);
+}
+.meta-icon.is-fav {
+  color: #e0a800;
+  border-color: #e0a800;
 }
 .modal-head-actions {
   margin-top: 10px;

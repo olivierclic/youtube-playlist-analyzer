@@ -20,7 +20,7 @@ export function Header() {
           <rect width="90" height="20" rx="4" fill="#FF0000" />
           <polygon points="36,4 36,16 56,10" fill="white" />
         </svg>
-        <span>Playlists</span>
+        <span>Youtube playlists analyser</span>
       </div>
 
       <SourceSelector />

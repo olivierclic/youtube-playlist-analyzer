@@ -20,6 +20,7 @@ export default function App() {
   const sort = useStore((s) => s.sort);
   const showHidden = useStore((s) => s.showHidden);
   const favoritesOnly = useStore((s) => s.favoritesOnly);
+  const keyword = useStore((s) => s.keyword);
   const selectedId = useStore((s) => s.selectedVideoId);
   const setPanelWidth = useStore((s) => s.setPanelWidth);
 
@@ -31,8 +32,8 @@ export default function App() {
   }, [init]);
 
   const filtered = useMemo(
-    () => getFiltered(videos, { period, type, channel, sort, showHidden, favoritesOnly }),
-    [videos, period, type, channel, sort, showHidden, favoritesOnly],
+    () => getFiltered(videos, { period, type, channel, sort, showHidden, favoritesOnly, keyword }),
+    [videos, period, type, channel, sort, showHidden, favoritesOnly, keyword],
   );
 
   // Redimensionnement du split (poignée).
