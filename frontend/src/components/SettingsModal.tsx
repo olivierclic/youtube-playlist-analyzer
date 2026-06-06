@@ -20,6 +20,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [keys, setKeys] = useState<SettingsPayload>({});
   const [model, setModel] = useState(settings?.model ?? "");
   const [actor, setActor] = useState(settings?.apifyActor ?? "");
+  const [prompt, setPrompt] = useState(settings?.summaryPrompt ?? "");
+  const [promptDetailed, setPromptDetailed] = useState(settings?.summaryDetailedPrompt ?? "");
   const [saveMsg, setSaveMsg] = useState("");
   const [ioMsg, setIoMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -30,6 +32,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     const payload: SettingsPayload = { ...keys };
     if (model && model !== settings?.model) payload.openrouter_model = model;
     if (actor && actor !== settings?.apifyActor) payload.apify_actor = actor;
+    if (prompt !== settings?.summaryPrompt) payload.summary_system_prompt = prompt;
+    if (promptDetailed !== settings?.summaryDetailedPrompt)
+      payload.summary_detailed_system_prompt = promptDetailed;
     try {
       await saveSettings(payload);
       setKeys({});
@@ -141,6 +146,29 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setActor(e.target.value)}
           />
         </div>
+
+        <div className="config-col">
+          <label>Prompt système — Résumé IA</label>
+          <textarea
+            className="config-textarea"
+            rows={4}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Instructions système pour le résumé standard…"
+          />
+        </div>
+        <div className="config-col">
+          <label>Prompt système — Résumé détaillé</label>
+          <textarea
+            className="config-textarea"
+            rows={5}
+            value={promptDetailed}
+            onChange={(e) => setPromptDetailed(e.target.value)}
+            placeholder="Instructions système pour le résumé détaillé…"
+          />
+          <small className="config-status">Laisse vide pour revenir au prompt par défaut.</small>
+        </div>
+
         <div className="config-row">
           <button className="btn btn-primary" onClick={() => void onSave()}>
             Enregistrer

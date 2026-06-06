@@ -56,6 +56,7 @@ export interface UserData {
   note_html: string | null;
   transcript: string | null;
   summary_md: string | null;
+  summary_detailed_md: string | null;
   hidden: 0 | 1;
   seen: 0 | 1;
   updated_at: string;
@@ -66,6 +67,7 @@ export interface VideoWithUserData extends Video {
   note_html: string | null;
   transcript: string | null;
   summary_md: string | null;
+  summary_detailed_md: string | null;
   hidden: 0 | 1;
 }
 
@@ -76,6 +78,8 @@ export interface SettingsPresence {
   apify: boolean;
   model: string;
   apifyActor: string;
+  summaryPrompt: string;
+  summaryDetailedPrompt: string;
   preferences: Record<string, string>;
 }
 

@@ -20,11 +20,10 @@ export interface SummaryInput {
   transcript?: string;
 }
 
-/** Construit le prompt de résumé (FR, sortie Markdown). Repris du prototype. */
-export function buildSummaryPrompt(v: SummaryInput): string {
+/** Construit le bloc de données vidéo (message utilisateur). */
+export function buildUserContent(v: SummaryInput): string {
   const transcript = v.transcript?.trim();
   return (
-    `Tu es un assistant qui résume des vidéos YouTube. Rédige un résumé clair et structuré en français, au format Markdown.\n\n` +
     `Titre : ${v.title || "(sans titre)"}\n` +
     `Chaîne : ${v.channel || "—"}\n` +
     `Durée : ${v.durationStr}\n\n` +
@@ -33,9 +32,7 @@ export function buildSummaryPrompt(v: SummaryInput): string {
       transcript
         ? "Transcription :\n" + transcript.slice(0, 12000)
         : "(Pas de transcription — base-toi sur le titre et la description.)"
-    }\n\n` +
-    `Produis : un titre court (##), 2-3 phrases de synthèse, puis une liste à puces des points clés. ` +
-    `Sois concis et factuel. Réponds uniquement avec le Markdown du résumé.`
+    }`
   );
 }
 
@@ -45,11 +42,13 @@ export function extractSummary(data: unknown): string {
   return typeof content === "string" ? content.trim() : "";
 }
 
-/** Génère un résumé Markdown via OpenRouter. */
+/** Génère un résumé Markdown via OpenRouter (prompt système + données vidéo). */
 export async function generateSummary(
   input: SummaryInput,
   apiKey: string,
   model: string,
+  systemPrompt: string,
+  maxTokens = 1024,
 ): Promise<string> {
   let res: Response;
   try {
@@ -62,8 +61,11 @@ export async function generateSummary(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1024,
-        messages: [{ role: "user", content: buildSummaryPrompt(input) }],
+        max_tokens: maxTokens,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: buildUserContent(input) },
+        ],
       }),
     });
   } catch (e) {

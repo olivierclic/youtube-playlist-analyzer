@@ -2,17 +2,19 @@ import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore.js";
 import { formatDuration, formatNum, longDate } from "../lib/format.js";
 import { htmlToPlain } from "../lib/markdown.js";
+import { printVideoSheet } from "../lib/pdf.js";
 import { NotesEditor } from "./NotesEditor.js";
 import { TranscriptTab } from "./TranscriptTab.js";
-import { SummaryTab } from "./SummaryTab.js";
+import { SummaryEditorTab } from "./SummaryEditorTab.js";
 
-type Tab = "notes" | "description" | "transcript" | "summary";
+type Tab = "notes" | "description" | "transcript" | "summary" | "summary_detailed";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "notes", label: "Notes" },
   { id: "description", label: "Description" },
   { id: "transcript", label: "Transcription" },
   { id: "summary", label: "Résumé IA" },
+  { id: "summary_detailed", label: "Résumé détaillé" },
 ];
 
 export function DetailPanel({ resizing }: { resizing: boolean }) {
@@ -27,7 +29,6 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
 
   const hasNote = Boolean(video?.note_html && htmlToPlain(video.note_html));
 
-  // À chaque changement de vidéo : Notes si une note existe, sinon Description.
   useEffect(() => {
     setTab(hasNote ? "notes" : "description");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,6 +60,11 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
                 {video.likes ? <span>👍 {formatNum(video.likes)}</span> : null}
                 {video.definition === "hd" ? <span>🔷 HD</span> : null}
               </div>
+              <div className="modal-head-actions">
+                <button className="btn-sm" onClick={() => printVideoSheet(video)} title="Générer un PDF de la fiche">
+                  📄 PDF
+                </button>
+              </div>
             </div>
           </div>
 
@@ -68,7 +74,8 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
                 (t.id === "notes" && hasNote) ||
                 (t.id === "description" && video.description) ||
                 (t.id === "transcript" && video.transcript) ||
-                (t.id === "summary" && video.summary_md);
+                (t.id === "summary" && video.summary_md) ||
+                (t.id === "summary_detailed" && video.summary_detailed_md);
               return (
                 <button
                   key={t.id}
@@ -93,7 +100,10 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
               <TranscriptTab key={video.id} videoId={video.id} initial={video.transcript ?? ""} />
             )}
             {tab === "summary" && (
-              <SummaryTab key={video.id} videoId={video.id} initial={video.summary_md ?? ""} />
+              <SummaryEditorTab key={`${video.id}-s`} videoId={video.id} kind="standard" summaryMd={video.summary_md} />
+            )}
+            {tab === "summary_detailed" && (
+              <SummaryEditorTab key={`${video.id}-d`} videoId={video.id} kind="detailed" summaryMd={video.summary_detailed_md} />
             )}
           </div>
 
@@ -106,10 +116,7 @@ export function DetailPanel({ resizing }: { resizing: boolean }) {
             >
               ▶ Ouvrir sur YouTube
             </a>
-            <button
-              className="btn"
-              onClick={() => void setVideoHidden(video.id, !video.hidden)}
-            >
+            <button className="btn" onClick={() => void setVideoHidden(video.id, !video.hidden)}>
               {video.hidden ? "↩ Restaurer dans la liste" : "🚫 Retirer de la liste"}
             </button>
           </div>

@@ -38,6 +38,7 @@ export interface Video {
   note_html: string | null;
   transcript: string | null;
   summary_md: string | null;
+  summary_detailed_md: string | null;
   hidden: boolean;
 }
 
@@ -47,6 +48,8 @@ export interface SettingsPresence {
   apify: boolean;
   model: string;
   apifyActor: string;
+  summaryPrompt: string;
+  summaryDetailedPrompt: string;
   preferences: Record<string, string>;
 }
 

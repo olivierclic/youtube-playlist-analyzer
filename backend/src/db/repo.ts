@@ -103,6 +103,7 @@ const listVideosStmt = db.prepare<[string], VideoWithUserData>(
           u.note_html  AS note_html,
           u.transcript AS transcript,
           u.summary_md AS summary_md,
+          u.summary_detailed_md AS summary_detailed_md,
           COALESCE(u.hidden, 0) AS hidden
    FROM videos v
    LEFT JOIN video_user_data u ON u.video_id = v.id
@@ -136,7 +137,7 @@ const videoExistsStmt = db.prepare<[string], { n: number }>(
   "SELECT COUNT(*) AS n FROM videos WHERE id = ?",
 );
 const getUserDataStmt = db.prepare<[string], UserData>(
-  "SELECT video_id, note_html, transcript, summary_md, hidden, seen, updated_at FROM video_user_data WHERE video_id = ?",
+  "SELECT video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, seen, updated_at FROM video_user_data WHERE video_id = ?",
 );
 
 /** Vrai si au moins une ligne `videos` porte cet id (toutes sources confondues). */
@@ -164,7 +165,9 @@ export function getUserData(videoId: string): UserData | undefined {
  * Upsert d'un champ utilisateur (note_html | transcript | summary_md | hidden).
  * Le nom de colonne est contrôlé (liste blanche), jamais une entrée libre.
  */
-function makeFieldUpsert(column: "note_html" | "transcript" | "summary_md" | "hidden" | "seen") {
+function makeFieldUpsert(
+  column: "note_html" | "transcript" | "summary_md" | "summary_detailed_md" | "hidden" | "seen",
+) {
   return db.prepare(
     `INSERT INTO video_user_data (video_id, ${column}, updated_at)
      VALUES (@id, @value, datetime('now'))
@@ -176,6 +179,7 @@ function makeFieldUpsert(column: "note_html" | "transcript" | "summary_md" | "hi
 const setNoteStmt = makeFieldUpsert("note_html");
 const setTranscriptStmt = makeFieldUpsert("transcript");
 const setSummaryStmt = makeFieldUpsert("summary_md");
+const setSummaryDetailedStmt = makeFieldUpsert("summary_detailed_md");
 const setHiddenStmt = makeFieldUpsert("hidden");
 const setSeenStmt = makeFieldUpsert("seen");
 
@@ -187,6 +191,9 @@ export function setTranscript(videoId: string, transcript: string | null): void 
 }
 export function setSummary(videoId: string, summaryMd: string | null): void {
   setSummaryStmt.run({ id: videoId, value: summaryMd });
+}
+export function setSummaryDetailed(videoId: string, summaryMd: string | null): void {
+  setSummaryDetailedStmt.run({ id: videoId, value: summaryMd });
 }
 export function setHidden(videoId: string, hidden: boolean): void {
   setHiddenStmt.run({ id: videoId, value: hidden ? 1 : 0 });
@@ -238,8 +245,8 @@ export function dumpData(): DataDump {
 }
 
 const insertUserDataStmt = db.prepare(
-  `INSERT INTO video_user_data (video_id, note_html, transcript, summary_md, hidden, seen, updated_at)
-   VALUES (@video_id, @note_html, @transcript, @summary_md, @hidden, @seen, @updated_at)`,
+  `INSERT INTO video_user_data (video_id, note_html, transcript, summary_md, summary_detailed_md, hidden, seen, updated_at)
+   VALUES (@video_id, @note_html, @transcript, @summary_md, @summary_detailed_md, @hidden, @seen, @updated_at)`,
 );
 
 /** Remplace toutes les données (sources + vidéos + données utilisateur) en une transaction. */
@@ -266,6 +273,7 @@ export const importData = db.transaction((dump: DataDump): void => {
       note_html: u.note_html ?? null,
       transcript: u.transcript ?? null,
       summary_md: u.summary_md ?? null,
+      summary_detailed_md: u.summary_detailed_md ?? null,
       hidden: u.hidden ?? 0,
       seen: u.seen ?? 0,
       updated_at: u.updated_at ?? new Date().toISOString(),

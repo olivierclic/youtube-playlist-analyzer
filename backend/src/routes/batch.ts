@@ -1,5 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
-import { getApifyActor, getApifyToken, getOpenRouterKey, getOpenRouterModel } from "../config.js";
+import {
+  getApifyActor,
+  getApifyToken,
+  getOpenRouterKey,
+  getOpenRouterModel,
+  getSummaryPrompt,
+} from "../config.js";
 import { getSource, listVideos, setSummary, setTranscript } from "../db/repo.js";
 import { fetchTranscript } from "../services/apify.js";
 import { generateSummary } from "../services/openrouter.js";
@@ -107,6 +113,7 @@ const batchRoutes: FastifyPluginAsync = async (app) => {
               },
               orKey!,
               getOpenRouterModel(),
+              getSummaryPrompt(),
             );
             setSummary(v.id, summary);
           } catch (e) {

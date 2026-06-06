@@ -98,6 +98,20 @@ export const api = {
     request<{ summary: string }>(`/videos/${encodeURIComponent(id)}/summary/generate`, {
       method: "POST",
     }),
+  generateSummaryDetailed: (id: string) =>
+    request<{ summary: string }>(`/videos/${encodeURIComponent(id)}/summary-detailed/generate`, {
+      method: "POST",
+    }),
+  saveSummary: (id: string, summary_md: string) =>
+    request<{ ok: true }>(`/videos/${encodeURIComponent(id)}/summary`, {
+      method: "PUT",
+      body: JSON.stringify({ summary_md }),
+    }),
+  saveSummaryDetailed: (id: string, summary_md: string) =>
+    request<{ ok: true }>(`/videos/${encodeURIComponent(id)}/summary-detailed`, {
+      method: "PUT",
+      body: JSON.stringify({ summary_md }),
+    }),
 
   // Réglages
   getSettings: () => request<SettingsPresence>("/settings"),

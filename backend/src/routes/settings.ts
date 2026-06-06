@@ -2,12 +2,17 @@ import type { FastifyPluginAsync } from "fastify";
 import {
   getApifyActor,
   getOpenRouterModel,
+  getSummaryDetailedPrompt,
+  getSummaryPrompt,
   hasConfig,
   listPreferences,
   setSetting,
   type ConfigKey,
 } from "../config.js";
 import type { SettingsPresence } from "../types.js";
+
+/** Clés texte (non secrètes) modifiables via l'UI : prompts système. */
+const WRITABLE_PROMPT_KEYS = ["summary_system_prompt", "summary_detailed_system_prompt"] as const;
 
 /** Clés de config modifiables via l'UI (secrètes ou non). */
 const WRITABLE_CONFIG_KEYS: ConfigKey[] = [
@@ -25,6 +30,8 @@ function presence(): SettingsPresence {
     apify: hasConfig("apify_token"),
     model: getOpenRouterModel(),
     apifyActor: getApifyActor(),
+    summaryPrompt: getSummaryPrompt(),
+    summaryDetailedPrompt: getSummaryDetailedPrompt(),
     preferences: listPreferences(),
   };
 }
@@ -46,6 +53,8 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
             apify_token: { type: "string" },
             openrouter_model: { type: "string" },
             apify_actor: { type: "string" },
+            summary_system_prompt: { type: "string" },
+            summary_detailed_system_prompt: { type: "string" },
             preferences: {
               type: "object",
               additionalProperties: { type: "string" },
@@ -63,6 +72,14 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
         const value = body[key];
         if (typeof value === "string") {
           // Chaîne vide => efface l'override (repli .env/défaut reprend la main).
+          setSetting(key, value.trim() === "" ? null : value);
+        }
+      }
+
+      // Prompts système : chaîne vide => réinitialise au défaut.
+      for (const key of WRITABLE_PROMPT_KEYS) {
+        const value = body[key];
+        if (typeof value === "string") {
           setSetting(key, value.trim() === "" ? null : value);
         }
       }

@@ -26,7 +26,23 @@ function createDb(): Database.Database {
   const schema = readFileSync(resolve(here, "schema.sql"), "utf8");
   db.exec(schema);
 
+  // Migrations additives pour les bases existantes (colonnes ajoutées après coup).
+  ensureColumn(db, "video_user_data", "summary_detailed_md", "TEXT");
+
   return db;
+}
+
+/** Ajoute une colonne si elle n'existe pas déjà (ALTER TABLE idempotent). */
+function ensureColumn(
+  db: Database.Database,
+  table: string,
+  column: string,
+  type: string,
+): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 /** Connexion SQLite partagée (singleton). */

@@ -29,6 +29,21 @@ const CONFIG_KEYS = {
 
 export type ConfigKey = keyof typeof CONFIG_KEYS;
 
+// Prompts système des résumés IA (éditables via Réglages, défaut si non défini).
+export const DEFAULT_SUMMARY_PROMPT =
+  "Tu es un assistant qui résume des vidéos YouTube. Rédige un résumé clair et structuré en français, au format Markdown. Produis : un titre court (##), 2-3 phrases de synthèse, puis une liste à puces des points clés. Sois concis et factuel. Réponds uniquement avec le Markdown du résumé.";
+
+export const DEFAULT_SUMMARY_DETAILED_PROMPT =
+  "Tu es un assistant qui résume des vidéos YouTube de façon détaillée. Rédige en français, au format Markdown, un résumé approfondi et structuré : un titre (##), une synthèse de quelques paragraphes, puis des sections thématiques avec sous-titres (###) et listes à puces couvrant les points importants, exemples et nuances abordés. Reste fidèle au contenu, sans inventer. Réponds uniquement avec le Markdown du résumé.";
+
+const SUMMARY_PROMPT_KEY = "summary_system_prompt";
+const SUMMARY_DETAILED_PROMPT_KEY = "summary_detailed_system_prompt";
+
+export const getSummaryPrompt = (): string =>
+  getSetting(SUMMARY_PROMPT_KEY)?.trim() || DEFAULT_SUMMARY_PROMPT;
+export const getSummaryDetailedPrompt = (): string =>
+  getSetting(SUMMARY_DETAILED_PROMPT_KEY)?.trim() || DEFAULT_SUMMARY_DETAILED_PROMPT;
+
 const selectSetting = db.prepare<[string], { value: string | null }>(
   "SELECT value FROM settings WHERE key = ?",
 );
@@ -75,11 +90,14 @@ const listSettingsStmt = db.prepare<[], { key: string; value: string | null }>(
   "SELECT key, value FROM settings",
 );
 
-/** Réglages non-secrets (préférences UI) : toutes les lignes hors clés de config. */
+// Clés exposées hors `preferences` (gérées explicitement par l'UI).
+const NON_PREFERENCE_KEYS = new Set([SUMMARY_PROMPT_KEY, SUMMARY_DETAILED_PROMPT_KEY]);
+
+/** Réglages non-secrets (préférences UI) : toutes les lignes hors clés de config/prompts. */
 export function listPreferences(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const row of listSettingsStmt.all()) {
-    if (row.key in CONFIG_KEYS) continue;
+    if (row.key in CONFIG_KEYS || NON_PREFERENCE_KEYS.has(row.key)) continue;
     if (row.value !== null) out[row.key] = row.value;
   }
   return out;

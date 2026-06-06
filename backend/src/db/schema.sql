@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS video_user_data (
   video_id   TEXT PRIMARY KEY,
   note_html  TEXT,                    -- note riche en HTML
   transcript TEXT,
-  summary_md TEXT,                    -- résumé en markdown
+  summary_md TEXT,                    -- résumé IA (markdown)
+  summary_detailed_md TEXT,           -- résumé IA détaillé (markdown)
   hidden     INTEGER DEFAULT 0,
   seen       INTEGER DEFAULT 0,       -- pour le traitement auto des nouveautés
   updated_at TEXT DEFAULT (datetime('now'))

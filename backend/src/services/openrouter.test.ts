@@ -1,28 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  buildSummaryPrompt,
+  buildUserContent,
   extractSummary,
   generateSummary,
   OpenRouterError,
 } from "./openrouter.js";
 
-describe("buildSummaryPrompt", () => {
+describe("buildUserContent", () => {
   const base = { title: "Titre", channel: "Chaîne", durationStr: "4:05", description: "Desc" };
 
   it("inclut titre, chaîne, durée et description", () => {
-    const p = buildSummaryPrompt(base);
+    const p = buildUserContent(base);
     expect(p).toContain("Titre : Titre");
     expect(p).toContain("Chaîne : Chaîne");
     expect(p).toContain("Durée : 4:05");
     expect(p).toContain("Desc");
   });
   it("inclut la transcription tronquée si présente", () => {
-    const p = buildSummaryPrompt({ ...base, transcript: "T".repeat(20000) });
+    const p = buildUserContent({ ...base, transcript: "T".repeat(20000) });
     expect(p).toContain("Transcription :");
     expect(p.length).toBeLessThan(20000 + 2000);
   });
   it("signale l'absence de transcription", () => {
-    expect(buildSummaryPrompt(base)).toContain("Pas de transcription");
+    expect(buildUserContent(base)).toContain("Pas de transcription");
   });
 });
 
@@ -49,6 +49,7 @@ describe("generateSummary", () => {
       { title: "T", channel: "C", durationStr: "1:00", description: "D" },
       "KEY",
       "model-x",
+      "prompt système",
     );
     expect(out).toBe("## Résumé\n- point");
   });
@@ -60,7 +61,7 @@ describe("generateSummary", () => {
       json: async () => ({ choices: [{ message: { content: "" } }] }),
     } as Response);
     await expect(
-      generateSummary({ title: "T", channel: "C", durationStr: "1:00", description: "D" }, "KEY", "m"),
+      generateSummary({ title: "T", channel: "C", durationStr: "1:00", description: "D" }, "KEY", "m", "sys"),
     ).rejects.toBeInstanceOf(OpenRouterError);
   });
 
@@ -71,7 +72,7 @@ describe("generateSummary", () => {
       json: async () => ({ error: { message: "no key" } }),
     } as Response);
     await expect(
-      generateSummary({ title: "T", channel: "C", durationStr: "1:00", description: "D" }, "K", "m"),
+      generateSummary({ title: "T", channel: "C", durationStr: "1:00", description: "D" }, "K", "m", "sys"),
     ).rejects.toMatchObject({ code: "openrouter_error", status: 401 });
   });
 });

@@ -69,6 +69,9 @@ interface AppState {
   saveTranscript: (id: string, transcript: string) => Promise<void>;
   fetchTranscript: (id: string) => Promise<string>;
   generateSummary: (id: string) => Promise<string>;
+  generateSummaryDetailed: (id: string) => Promise<string>;
+  saveSummary: (id: string, md: string) => Promise<void>;
+  saveSummaryDetailed: (id: string, md: string) => Promise<void>;
 
   // Masquage
   setVideoHidden: (id: string, hidden: boolean) => Promise<void>;
@@ -96,6 +99,8 @@ export interface SettingsPayload {
   apify_token?: string;
   openrouter_model?: string;
   apify_actor?: string;
+  summary_system_prompt?: string;
+  summary_detailed_system_prompt?: string;
 }
 
 function applyTheme(theme: Theme) {
@@ -301,6 +306,19 @@ export const useStore = create<AppState>((set, get) => ({
     const { summary } = await api.generateSummary(id);
     patchVideo(set, get, id, { summary_md: summary });
     return summary;
+  },
+  async generateSummaryDetailed(id) {
+    const { summary } = await api.generateSummaryDetailed(id);
+    patchVideo(set, get, id, { summary_detailed_md: summary });
+    return summary;
+  },
+  async saveSummary(id, md) {
+    await api.saveSummary(id, md);
+    patchVideo(set, get, id, { summary_md: md.trim() === "" ? null : md });
+  },
+  async saveSummaryDetailed(id, md) {
+    await api.saveSummaryDetailed(id, md);
+    patchVideo(set, get, id, { summary_detailed_md: md.trim() === "" ? null : md });
   },
 
   async setVideoHidden(id, hidden) {
